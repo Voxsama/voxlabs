@@ -143,6 +143,7 @@ sudo systemctl restart voxlabs
 | `HOSTNAME` | all interfaces | Use `127.0.0.1` when behind a reverse proxy |
 | `DATA_DIR` | `./data` | Data folder (see section 2) |
 | `CARTESIA_API_KEY` | none | Optional. The key saved in Settings takes priority. |
+| `CARTESIA_ADMIN_KEY` | none | Optional. Cartesia admin key, only used to read credit usage for the sidebar. Can also be entered in Settings. |
 | `GEN_CONCURRENCY` | 3 | Paragraphs generated in parallel. Raise only if your Cartesia plan allows it. |
 | `SESSION_SECRET` | random file | Sign login cookies with a fixed secret instead of `DATA_DIR/session-secret` |
 | `FFMPEG_PATH` | bundled | Use the system ffmpeg instead of the bundled one |

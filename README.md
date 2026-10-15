@@ -17,6 +17,7 @@ Runs on Windows, macOS and Linux. All projects, text and audio stay on your mach
 - **Player** that plays the whole chapter with pauses, highlights the current paragraph, and seeks by clicking the timeline.
 - **Import**: paste text, or upload `.txt` / `.docx` files or a `.zip` of them. Each file becomes a chapter, in natural order (s1, s2, … s10).
 - **Export**: full project, current chapter, or chosen chapters. One file per chapter (ZIP), one merged file, or one file per paragraph (ZIP). Formats: WAV (keeps the source quality), MP3 (128–320 kbps), FLAC (24-bit), OGG. ZIPs include the script text and a `manifest.json`.
+- **Credits left** at the top of the sidebar, like ElevenLabs. Enter your Cartesia plan size and renewal day in Settings. Add an optional Cartesia admin key for exact usage; without it the app counts the characters it sends.
 - **Voice library**: search Cartesia voices, filter by language and gender, preview, star favourites, and test any voice with your own sentence.
 - **Voice cloning**: upload a clip or record with your microphone, trim it to 10–60 seconds, and create an instant clone. You can delete clones and add extra accents or languages to them.
 
@@ -122,6 +123,7 @@ Back up `data/` to back up everything. The folder can be copied between Windows,
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `CARTESIA_API_KEY` | none | API key. A key saved in the Settings page wins. |
+| `CARTESIA_ADMIN_KEY` | none | Optional admin key (`sk_car_admin_...`) for exact credit usage. A key saved in Settings wins. |
 | `CARTESIA_VERSION` | `2026-08-14` | Cartesia API version header |
 | `DATA_DIR` | `./data` | Where the database and audio are stored |
 | `GEN_CONCURRENCY` | `3` | Paragraphs generated at the same time. Also changeable in Settings. |

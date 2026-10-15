@@ -337,6 +337,20 @@ ok(acc.accents.some((a) => a.locale === "en-GB"), "add accent to cloned voice");
 await call("DELETE", `/api/voices/${cloned.voice.id}`);
 ok(!(await call("GET", "/api/voices?mine=1")).voices.some((v) => v.id === cloned.voice.id), "delete cloned voice");
 
+// ------------------------------------------------------------------ credits
+const counted = await call("GET", "/api/credits");
+ok(counted.source === "app" && counted.used > 0 && counted.left === null, `credits badge counts characters sent by this app (${counted.used})`);
+await call("PUT", "/api/settings", { planCredits: 1000000, renewDay: 31 });
+const planned = await call("GET", "/api/credits");
+ok(planned.plan === 1000000 && planned.left === 1000000 - planned.used, "credits left = plan - used");
+await call("PUT", "/api/settings", { adminKey: "sk_car_not_admin" });
+const badAdmin = await call("GET", "/api/credits");
+ok(badAdmin.source === "app" && /admin/i.test(badAdmin.warning || ""), "a normal key in the admin field falls back to the app's count with a warning");
+await call("PUT", "/api/settings", { adminKey: "sk_car_admin_mock" });
+const exact = await call("GET", "/api/credits");
+ok(exact.source === "cartesia" && exact.used === 4321 && exact.left === 1000000 - 4321, "admin key reads exact usage from Cartesia");
+await call("PUT", "/api/settings", { adminKey: null, planCredits: null, renewDay: 1 });
+
 // ------------------------------------------------------------------ cleanup
 await call("DELETE", `/api/projects/${project.id}`);
 ok(!(await call("GET", "/api/projects")).some((p) => p.id === project.id), "project deleted");

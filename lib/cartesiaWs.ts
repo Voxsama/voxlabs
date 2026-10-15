@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import WebSocket from "ws";
 import { BASE_URL, CARTESIA_VERSION, CartesiaError, encodingFor, generationConfig, getApiKey } from "./cartesia";
 import type { GenSettings } from "./settings";
+import { recordUsage } from "./usage";
 
 /** Continuation chunks must each end a sentence and join into one valid transcript. */
 export function forContinuation(transcript: string, language: string, last: boolean): string {
@@ -66,6 +67,7 @@ export function generateRun(transcripts: string[], s: GenSettings, opts: RunOpti
       if (i < 0 || i >= out.length || out[i]) return;
       out[i] = Buffer.concat(parts[i]);
       parts[i] = [];
+      recordUsage(transcripts[i].length);
       opts.onAudio?.(i, out[i]!);
     };
     const onAbort = () => finish(new Error("Cancelled"));

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CreditsBadge } from "./CreditsBadge";
 
 interface Me {
   user: { username: string; is_admin: number } | null;
@@ -30,6 +31,7 @@ export function Nav() {
   return (
     <nav className="flex w-44 shrink-0 flex-col gap-1 border-r border-neutral-800 p-3 text-sm">
       <div className="mb-3 px-2 font-semibold">Voxlabs</div>
+      {me?.user && <CreditsBadge />}
       {link("/", "Projects")}
       {link("/voices", "Voices")}
       {link("/voices/clone", "Clone a voice")}

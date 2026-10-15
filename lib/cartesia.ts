@@ -1,4 +1,5 @@
 import { getSetting } from "./db";
+import { recordUsage } from "./usage";
 export { MODELS, LANGUAGES } from "./constants";
 
 export const BASE_URL = process.env.CARTESIA_BASE_URL || "https://api.cartesia.ai";
@@ -94,7 +95,23 @@ export async function tts(opts: TtsOptions): Promise<Buffer> {
       body: JSON.stringify(body),
     }),
   );
-  return Buffer.from(await res.arrayBuffer());
+  const audio = Buffer.from(await res.arrayBuffer());
+  recordUsage(opts.transcript.length);
+  return audio;
+}
+
+export function getAdminKey(): string | null {
+  return getSetting("cartesia_admin_key") || process.env.CARTESIA_ADMIN_KEY || null;
+}
+
+/** Credits used from `start` until now (Cartesia counts whole UTC days). Needs an admin key (sk_car_admin_...). */
+export async function creditUsage(adminKey: string, start: Date): Promise<number> {
+  const qs = new URLSearchParams({ start_ts: start.toISOString(), end_ts: new Date().toISOString() });
+  const res = await check(
+    await fetch(`${BASE_URL}/usage/credits?${qs}`, { headers: { Authorization: `Bearer ${adminKey}`, "Cartesia-Version": CARTESIA_VERSION } }),
+  );
+  const j = (await res.json()) as { data?: { credits?: number }[] };
+  return (j.data ?? []).reduce((n, b) => n + (Number(b.credits) || 0), 0);
 }
 
 export interface CartesiaVoice {

@@ -78,6 +78,10 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS usage_daily (
+  day TEXT PRIMARY KEY,
+  characters INTEGER NOT NULL DEFAULT 0
+);
 `;
 
 /** Small additive migrations for databases created by older versions. */

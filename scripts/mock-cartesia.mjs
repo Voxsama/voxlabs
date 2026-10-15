@@ -54,6 +54,10 @@ const server = http.createServer(async (req, res) => {
     const f = j.output_format || {};
     return send(200, wav(clipMs(j.transcript), freqOf(j.voice), f.sample_rate, f.encoding), "audio/wav");
   }
+  if (url.pathname === "/usage/credits" && req.method === "GET") {
+    if (!auth.startsWith("Bearer sk_car_admin_")) return send(403, { message: "This endpoint requires an admin API key" });
+    return send(200, { data: [{ start_ts: url.searchParams.get("start_ts"), end_ts: url.searchParams.get("end_ts"), credits: 4321 }] });
+  }
   if (url.pathname === "/voices" && req.method === "GET") {
     let v = voices;
     if (url.searchParams.get("is_owner") === "true") v = v.filter((x) => x.is_owner);
