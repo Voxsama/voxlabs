@@ -1,0 +1,13 @@
+# IT: docker login ghcr.io (once), then:  docker compose pull && docker compose up -d
+services:
+  voxlabs:
+    image: ghcr.io/voxsama/voxlabs:${VOXLABS_VERSION:-latest}
+    build: .                      # developers only: docker compose build
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      CARTESIA_API_KEY: ${CARTESIA_API_KEY:-}
+      GEN_CONCURRENCY: ${GEN_CONCURRENCY:-3}
+    volumes:
+      - ./voxlabs-data:/data      # all projects, audio, database. Back this up.

@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+body { @apply bg-neutral-950 text-neutral-100 antialiased; font-family: "Noto Sans Devanagari", "Noto Sans", "Nirmala UI", "Mangal", "Lohit Devanagari", system-ui, sans-serif; }
+@layer components {
+  .btn { @apply inline-flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed; }
+  .btn-primary { @apply border-white bg-white text-black hover:bg-neutral-200; }
+  .btn-danger { @apply border-red-800 bg-red-950 text-red-200 hover:bg-red-900; }
+  .btn-ghost { @apply border-transparent bg-transparent hover:bg-neutral-800; }
+  .btn-sm { @apply px-2 py-1 text-xs; }
+  .input { @apply w-full rounded-md border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-sm outline-none focus:border-neutral-400; }
+  .label { @apply mb-1 block text-xs font-medium text-neutral-400; }
+  .card { @apply rounded-lg border border-neutral-800 bg-neutral-900; }
+}
