@@ -2,8 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { AUDIO_DIR, CACHE_DIR, db, newId, now } from "./db";
 import { emit } from "./events";
-import { isPauseOnly } from "./text";
-import type { AudioVersion, Chapter, Paragraph, ParagraphStatus, Project, ProjectSummary } from "./types";
+import { isPauseOnly, sameLine } from "./text";
+import type {
+  AudioVersion, Chapter, Paragraph, ParagraphStatus, Project, ProjectSummary, Template, TemplateChapter, TemplateInput,
+} from "./types";
 
 export class NotFound extends Error {
   status = 404;
@@ -87,6 +89,7 @@ export function updateProject(id: string, input: Partial<Project>): Project {
   if ("sample_rate" in patch) patch.sample_rate = [44100, 48000].includes(Number(patch.sample_rate)) ? Number(patch.sample_rate) : cur.sample_rate;
   if ("bit_depth" in patch) patch.bit_depth = patch.bit_depth === "16" || patch.bit_depth === "32f" ? patch.bit_depth : cur.bit_depth;
   if ("paragraph_gap_ms" in patch) patch.paragraph_gap_ms = Math.round(clamp(patch.paragraph_gap_ms, 0, 5000, cur.paragraph_gap_ms));
+  if ("name" in patch) patch.name = String(patch.name ?? "").trim() || cur.name;
   const sets: string[] = [];
   const vals: unknown[] = [];
   for (const f of PROJECT_FIELDS) {
@@ -97,8 +100,25 @@ export function updateProject(id: string, input: Partial<Project>): Project {
   }
   sets.push("updated_at = ?");
   vals.push(now(), id);
-  db.prepare(`UPDATE projects SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+  db.transaction(() => {
+    db.prepare(`UPDATE projects SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+    // Chapters named after the project code follow a rename (exo-p59-s1 → exo-p60-s1).
+    if (patch.name && patch.name !== cur.name) {
+      const set = db.prepare("UPDATE chapters SET name = ?, updated_at = ? WHERE id = ?");
+      for (const c of db.prepare("SELECT id, name FROM chapters WHERE project_id = ?").all(id) as { id: string; name: string }[]) {
+        const name = renameCode(c.name, cur.name, patch.name);
+        if (name !== c.name) set.run(name, now(), c.id);
+      }
+    }
+  })();
   return getProject(id);
+}
+
+/** `exo-p59-s1` with code Exo-P59 → Exo-P60 gives `exo-p60-s1`; names not starting with `<old code>-` are kept. */
+export function renameCode(name: string, oldCode: string, newCode: string): string {
+  const old = oldCode.trim();
+  if (!old || !name.toLowerCase().startsWith(old.toLowerCase() + "-")) return name;
+  return newCode.trim().toLowerCase() + name.slice(old.length);
 }
 
 export function touchProject(id: string) {
@@ -111,6 +131,140 @@ export function deleteProject(id: string) {
   db.prepare("DELETE FROM projects WHERE id = ?").run(id);
   rmrf(path.join(AUDIO_DIR, id));
   clearChapterCache(chapterIds);
+}
+
+const badRequest = (msg: string) => Object.assign(new Error(msg), { status: 400 });
+
+/** New project from a template: one chapter `<code>-<suffix>` per template chapter, holding [title, end text]. */
+export function createProjectFromTemplate(project: Partial<Project> & { name: string }, t: Template): Project {
+  const code = project.name.trim();
+  if (!code) throw badRequest("Enter the project code");
+  return db.transaction(() => {
+    const pr = createProject({ ...project, name: code });
+    for (const c of t.chapters) createChapter(pr.id, `${code}-${c.suffix}`.toLowerCase(), [c.title, t.end_text].filter((s) => s.trim()));
+    return getProject(pr.id);
+  })();
+}
+
+/**
+ * Copy a project under a new code: settings, chapters (renamed to the new code), paragraphs and
+ * the active audio take of each paragraph (as version 1), so nothing needs regenerating.
+ * Chapters listed in `resetChapters` keep only their first and last paragraph (heading and end line).
+ */
+export function duplicateProject(srcId: string, newName: string, resetChapters: string[] = []): Project {
+  const src = getProject(srcId);
+  const reset = new Set(resetChapters);
+  const code = newName.trim();
+  if (!code) throw badRequest("Enter the project code");
+  const id = newId();
+  const t = now();
+  const insChapter = db.prepare(
+    "INSERT INTO chapters (id, project_id, name, position, voice_id, voice_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  const insParagraph = db.prepare(
+    `INSERT INTO paragraphs (id, chapter_id, position, text, voice_id, voice_name, speed, volume, emotion, is_pause, status, error, active_version_id, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+  );
+  const insVersion = db.prepare(
+    `INSERT INTO audio_versions (id, paragraph_id, version_no, file_path, duration_ms, model_id, voice_id, text_snapshot, settings_json, created_at)
+     VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  try {
+    db.transaction(() => {
+      db.prepare(
+        `INSERT INTO projects (id, ${PROJECT_FIELDS.join(", ")}, created_at, updated_at) VALUES (?, ${PROJECT_FIELDS.map(() => "?").join(", ")}, ?, ?)`,
+      ).run(id, ...PROJECT_FIELDS.map((f) => (f === "name" ? code : src[f])), t, t);
+      for (const c of listChapters(srcId)) {
+        const cid = newId();
+        insChapter.run(cid, id, renameCode(c.name, src.name, code), c.position, c.voice_id, c.voice_name, t, t);
+        let ps = db.prepare("SELECT * FROM paragraphs WHERE chapter_id = ? ORDER BY position").all(c.id) as Paragraph[];
+        if (reset.has(c.id) && ps.length >= 3) ps = [ps[0], ps[ps.length - 1]];
+        for (const [i, p] of ps.entries()) {
+          const pid = newId();
+          const v = p.active_version_id
+            ? (db.prepare("SELECT * FROM audio_versions WHERE id = ?").get(p.active_version_id) as AudioVersion | undefined)
+            : undefined;
+          const from = v ? path.join(AUDIO_DIR, v.file_path) : "";
+          // ponytail: a take whose file went missing is skipped silently; that paragraph just needs generating again.
+          const vid = v && fs.existsSync(from) ? newId() : null;
+          insParagraph.run(pid, cid, i, p.text, p.voice_id, p.voice_name, p.speed, p.volume, p.emotion, p.is_pause, vid ? "done" : "idle", vid, t);
+          if (!v || !vid) continue;
+          // Same layout and forward-slash path as jobs.saveVersion.
+          const rel = path.posix.join(id, cid, `${pid}-v1.wav`);
+          const abs = path.join(AUDIO_DIR, rel);
+          fs.mkdirSync(path.dirname(abs), { recursive: true });
+          fs.copyFileSync(from, abs);
+          insVersion.run(vid, pid, rel, v.duration_ms, v.model_id, v.voice_id, v.text_snapshot, v.settings_json, t);
+        }
+      }
+    })();
+  } catch (e) {
+    rmrf(path.join(AUDIO_DIR, id)); // the transaction rolled back; drop the copied files too
+    throw e;
+  }
+  return getProject(id);
+}
+
+// ---------------------------------------------------------------- templates
+
+type TemplateRow = Omit<Template, "chapters"> & { chapters_json: string };
+
+function rowToTemplate(r: TemplateRow): Template {
+  let chapters: TemplateChapter[] = [];
+  try {
+    const v = JSON.parse(r.chapters_json);
+    if (Array.isArray(v)) chapters = v;
+  } catch {}
+  return { id: r.id, category: r.category, name: r.name, chapters, end_text: r.end_text, created_at: r.created_at, updated_at: r.updated_at };
+}
+
+/** Trim everything, drop blank chapter rows, require a name, suffixes and at least one chapter. */
+function normalizeTemplateInput(input: Partial<TemplateInput>): Required<TemplateInput> {
+  const name = String(input.name ?? "").trim();
+  if (!name) throw badRequest("Template name is required");
+  const chapters = (Array.isArray(input.chapters) ? input.chapters : [])
+    .map((c) => ({ suffix: String(c?.suffix ?? "").trim(), title: String(c?.title ?? "").trim() }))
+    .filter((c) => c.suffix || c.title);
+  if (!chapters.length) throw badRequest("Add at least one chapter");
+  const seen = new Set<string>();
+  for (const c of chapters) {
+    if (!c.suffix) throw badRequest(`Chapter "${c.title}" needs a suffix`);
+    if (seen.has(c.suffix.toLowerCase())) throw badRequest(`Duplicate chapter suffix "${c.suffix}"`);
+    seen.add(c.suffix.toLowerCase());
+  }
+  return { category: String(input.category ?? "").trim(), name, chapters, end_text: String(input.end_text ?? "").trim() };
+}
+
+export function listTemplates(): Template[] {
+  const rows = db.prepare("SELECT * FROM templates ORDER BY category COLLATE NOCASE, name COLLATE NOCASE").all() as TemplateRow[];
+  return rows.map(rowToTemplate);
+}
+
+export function getTemplate(id: string): Template {
+  return rowToTemplate(must(db.prepare("SELECT * FROM templates WHERE id = ?").get(id) as TemplateRow | undefined, "Template"));
+}
+
+export function createTemplate(input: TemplateInput): Template {
+  const v = normalizeTemplateInput(input);
+  const id = newId();
+  const t = now();
+  db.prepare(
+    "INSERT INTO templates (id, category, name, chapters_json, end_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).run(id, v.category, v.name, JSON.stringify(v.chapters), v.end_text, t, t);
+  return getTemplate(id);
+}
+
+export function updateTemplate(id: string, patch: Partial<TemplateInput>): Template {
+  const v = normalizeTemplateInput({ ...getTemplate(id), ...patch });
+  db.prepare("UPDATE templates SET category = ?, name = ?, chapters_json = ?, end_text = ?, updated_at = ? WHERE id = ?").run(
+    v.category, v.name, JSON.stringify(v.chapters), v.end_text, now(), id,
+  );
+  return getTemplate(id);
+}
+
+export function deleteTemplate(id: string) {
+  getTemplate(id);
+  db.prepare("DELETE FROM templates WHERE id = ?").run(id);
 }
 
 // ---------------------------------------------------------------- chapters
@@ -249,6 +403,33 @@ export function replaceParagraphs(chapterId: string, texts: string[]) {
   touchProject(c.project_id);
 }
 
+/**
+ * Replace everything between the first and last paragraph (import with "middle"); with < 2 paragraphs it appends.
+ * Pasted lines repeating the kept heading / end line are dropped.
+ */
+export function replaceMiddleParagraphs(chapterId: string, texts: string[]) {
+  const c = getChapter(chapterId);
+  const files: string[] = [];
+  db.transaction(() => {
+    const rows = db.prepare("SELECT id, text FROM paragraphs WHERE chapter_id = ? ORDER BY position").all(chapterId) as { id: string; text: string }[];
+    const ids = rows.map((r) => r.id);
+    let [from, to] = [0, texts.length];
+    if (rows.length) while (from < to && sameLine(texts[from], rows[0].text)) from++;
+    if (rows.length >= 2) while (from < to && sameLine(texts[to - 1], rows[rows.length - 1].text)) to--;
+    texts = texts.slice(from, to);
+    const middle = ids.slice(1, -1);
+    if (middle.length) {
+      for (const id of middle) files.push(...versionFiles(id));
+      // audio_versions rows go with them (ON DELETE CASCADE).
+      db.prepare(`DELETE FROM paragraphs WHERE id IN (${middle.map(() => "?").join(", ")})`).run(...middle);
+    }
+    insertParagraphsTx(chapterId, ids[0] ?? null, texts); // after the first = before the last; renumbers 0..n-1
+  })();
+  // Files go only once the rows are gone for good.
+  for (const f of files) fs.rmSync(f, { force: true });
+  touchProject(c.project_id);
+}
+
 export interface ParagraphPatch {
   text?: string;
   voice_id?: string | null;
@@ -274,9 +455,14 @@ export function updateParagraph(id: string, patch: ParagraphPatch): Paragraph {
   return getParagraph(id);
 }
 
-function deleteVersionFiles(paragraphId: string) {
+/** Absolute paths of every take of a paragraph. */
+function versionFiles(paragraphId: string): string[] {
   const vs = db.prepare("SELECT file_path FROM audio_versions WHERE paragraph_id = ?").all(paragraphId) as { file_path: string }[];
-  for (const v of vs) fs.rmSync(path.join(AUDIO_DIR, v.file_path), { force: true });
+  return vs.map((v) => path.join(AUDIO_DIR, v.file_path));
+}
+
+function deleteVersionFiles(paragraphId: string) {
+  for (const f of versionFiles(paragraphId)) fs.rmSync(f, { force: true });
 }
 
 export function deleteParagraph(id: string) {

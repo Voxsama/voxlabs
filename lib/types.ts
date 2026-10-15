@@ -91,3 +91,8 @@ export type StudioEvent =
   | { type: "paragraph"; paragraph: Paragraph }
   | { type: "chapter"; chapterId: string }
   | { type: "ping" };
+
+/** A project template: chapters named `<code>-<suffix>`, each starting with `title` and ending with `end_text`. */
+export interface TemplateChapter { suffix: string; title: string }
+export interface Template { id: string; category: string; name: string; chapters: TemplateChapter[]; end_text: string; created_at: string; updated_at: string }
+export type TemplateInput = { category?: string; name: string; chapters: TemplateChapter[]; end_text?: string };

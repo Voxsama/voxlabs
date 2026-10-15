@@ -122,6 +122,12 @@ export function splitIntoParagraphs(raw: string, mode: SplitMode = "line", max =
   return out;
 }
 
+/** Same line ignoring case, whitespace, punctuation and symbols ("आवश्यक जानकारी:" = "आवश्यक जानकारी"; । and ॥ are punctuation). */
+export function sameLine(a: string, b: string): boolean {
+  const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+  return norm(a) === norm(b);
+}
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 /** Natural sort: s1, s2, ... s10 (not s1, s10, s2). */
 export const naturalCompare = (a: string, b: string) => collator.compare(a, b);

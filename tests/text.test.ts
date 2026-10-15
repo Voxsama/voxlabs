@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  breakDurations, isPauseOnly, looksBroken, naturalCompare, pauseDurationMs, splitIntoParagraphs, splitLong, toTranscript,
+  breakDurations, isPauseOnly, looksBroken, naturalCompare, pauseDurationMs, sameLine, splitIntoParagraphs, splitLong, toTranscript,
 } from "@/lib/text";
+
+describe("sameLine", () => {
+  it("ignores case, whitespace, punctuation (incl. danda) and symbols", () => {
+    expect(sameLine("आवश्यक जानकारी:", "आवश्यक  जानकारी")).toBe(true);
+    expect(sameLine("यह रिकॉर्डिंग का अंत है।", "यह रिकॉर्डिंग का अंत है")).toBe(true);
+    expect(sameLine("अंत ॥", "अंत")).toBe(true);
+    expect(sameLine("The END!", "the end")).toBe(true);
+    expect(sameLine("क़", "क़")).toBe(true); // क़ precomposed vs nukta (NFC)
+    expect(sameLine("आवश्यक जानकारी", "आवश्यक")).toBe(false);
+    expect(sameLine("कि", "की")).toBe(false);
+  });
+});
 
 const B = '<break time="1s" />';
 

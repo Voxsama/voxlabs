@@ -11,7 +11,7 @@ import type { Chapter, Paragraph, Project } from "@/lib/types";
 
 export function PasteDialog({ chapter, hasParagraphs, onClose, onDone }: { chapter: Chapter; hasParagraphs: boolean; onClose: () => void; onDone: (ps: Paragraph[]) => void }) {
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<"append" | "replace">("append");
+  const [mode, setMode] = useState<"append" | "replace" | "middle">(hasParagraphs ? "middle" : "append");
   const [split, setSplit] = useState<"line" | "blank">("line");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +19,7 @@ export function PasteDialog({ chapter, hasParagraphs, onClose, onDone }: { chapt
 
   const submit = async () => {
     if (mode === "replace" && hasParagraphs && !confirm("Replace all paragraphs (and their audio) in this chapter?")) return;
+    if (mode === "middle" && hasParagraphs && !confirm("Replace everything between the first and last paragraph (and its audio)?")) return;
     setBusy(true);
     try {
       const r = await api<{ paragraphs: Paragraph[] }>(`/api/chapters/${chapter.id}/import`, { method: "POST", json: { text, mode, split } });
@@ -57,9 +58,11 @@ export function PasteDialog({ chapter, hasParagraphs, onClose, onDone }: { chapt
             </select>
           </Field>
           <Field label="Where">
-            <select className="input" value={mode} onChange={(e) => setMode(e.target.value as "append" | "replace")}>
+            <select className="input" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+              {hasParagraphs && <option value="middle">Replace content, keep heading and end line</option>}
               <option value="append">Add to the end</option>
               <option value="replace">Replace chapter content</option>
+              {!hasParagraphs && <option value="middle">Replace content, keep heading and end line</option>}
             </select>
           </Field>
           <div className="pb-2 text-sm text-neutral-400">{count} paragraphs</div>

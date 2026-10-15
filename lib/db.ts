@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { FIA_TEMPLATE } from "./templates";
 import { isPauseOnly } from "./text";
 
 export const DATA_DIR = path.resolve(/*turbopackIgnore: true*/ process.env.DATA_DIR || path.join(process.cwd(), "data"));
@@ -82,6 +83,15 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   day TEXT PRIMARY KEY,
   characters INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS templates (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  chapters_json TEXT NOT NULL DEFAULT '[]',
+  end_text TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `;
 
 /** Small additive migrations for databases created by older versions. */
@@ -106,6 +116,21 @@ function migrate(db: Database.Database) {
   }
 }
 
+/** Insert the built-in FIA template once; a deleted FIA stays deleted. */
+export function seedTemplates(db: Database.Database) {
+  const { n } = db.prepare("SELECT COUNT(*) AS n FROM templates").get() as { n: number };
+  if (n || db.prepare("SELECT 1 FROM settings WHERE key = 'templates_seeded'").get()) return;
+  // Raw values: runs inside open(), before `now`/`newId` below are initialised.
+  const t = new Date().toISOString();
+  const f = FIA_TEMPLATE;
+  db.transaction(() => {
+    db.prepare(
+      "INSERT INTO templates (id, category, name, chapters_json, end_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run(crypto.randomUUID(), f.category ?? "", f.name, JSON.stringify(f.chapters), f.end_text ?? "", t, t);
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('templates_seeded', '1')").run();
+  })();
+}
+
 function open(): Database.Database {
   fs.mkdirSync(AUDIO_DIR, { recursive: true });
   fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -114,6 +139,7 @@ function open(): Database.Database {
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
   migrate(db);
+  seedTemplates(db);
   // Jobs do not survive a restart: anything that was in flight goes back to idle.
   db.prepare(
     "UPDATE paragraphs SET status = 'idle' WHERE status IN ('queued', 'generating')",
