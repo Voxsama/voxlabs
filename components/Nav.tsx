@@ -42,7 +42,6 @@ export function Nav() {
             <button className="hover:text-white" onClick={logout}>Log out</button>
           </div>
         )}
-        <div>Powered by Cartesia</div>
         {version && <div>Voxlabs v{version}</div>}
       </div>
     </nav>
