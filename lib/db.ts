@@ -139,7 +139,9 @@ export function seedTemplates(db: Database.Database) {
 function open(): Database.Database {
   fs.mkdirSync(AUDIO_DIR, { recursive: true });
   fs.mkdirSync(CACHE_DIR, { recursive: true });
-  const db = new Database(path.join(DATA_DIR, "studio.db"));
+  // `next build` imports routes in parallel workers; keep them off the real file (SQLITE_BUSY on a fresh DB).
+  const build = process.env.NEXT_PHASE === "phase-production-build";
+  const db = new Database(build ? ":memory:" : path.join(DATA_DIR, "studio.db"));
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
