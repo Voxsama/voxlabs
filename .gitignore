@@ -4,3 +4,8 @@ data/
 .env.local
 next-env.d.ts
 *.tsbuildinfo
+
+# Claude Code local settings and Impeccable caches
+.claude/settings.local.json
+.impeccable/hook.cache.json
+.impeccable/config.local.json

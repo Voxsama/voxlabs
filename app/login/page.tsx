@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ErrorText, Field } from "@/components/ui";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
   const [setup, setSetup] = useState<boolean | null>(null);
@@ -52,7 +53,7 @@ export default function LoginPage() {
     <div className="flex h-full items-center justify-center p-6">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-6">
         <div>
-          <h1 className="text-xl font-semibold">Voxlabs</h1>
+          <h1><Logo className="h-10 w-auto" /></h1>
           <p className="mt-1 text-sm text-neutral-400">
             {setup ? "First start: create the admin account. You can add your team after this." : "Log in to continue."}
           </p>

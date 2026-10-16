@@ -131,6 +131,17 @@ Back up `data/` to back up everything. The folder can be copied between Windows,
 | `SESSION_SECRET` | random file in `DATA_DIR` | Secret that signs login cookies |
 | `AUTH_DISABLED` | off | `1` turns the login off. Only for a private single-user PC. |
 
+## Design skills
+
+Claude Code skills for UI work live in `.claude/skills/`:
+
+- **voxlabs-ui**: Voxlabs house rules (colours, components, editor keys, review loop).
+- **ui-ux-pro-max**: design direction, palettes and fonts. Needs Python 3 (check with `python3 --version`).
+- **impeccable**: polish, audit and critique. Downloads a small engine on first use.
+- **frontend-design**: avoids generic, templated looks.
+- **baseline-ui**: quick spacing and hierarchy pass.
+- **fixing-accessibility**: accessibility check before shipping.
+
 ## Tests
 
 ```sh
