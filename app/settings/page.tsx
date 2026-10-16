@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { CREDITS_EVENT } from "@/components/CreditsBadge";
 import { ErrorText, Field, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -247,7 +248,7 @@ function TemplateEditor({ draft, onClose, onSaved }: { draft: Draft; onClose: ()
               <div key={i} className="flex gap-2">
                 <input className="input w-20 shrink-0" value={c.suffix} onChange={(e) => setRow(i, { suffix: e.target.value })} placeholder="s1" />
                 <input className="input flex-1" value={c.title} onChange={(e) => setRow(i, { title: e.target.value })} placeholder="Heading text" />
-                <button className="btn btn-ghost btn-sm" title="Remove chapter" onClick={() => setD({ ...d, chapters: d.chapters.filter((_, j) => j !== i) })}>×</button>
+                <button className="btn btn-ghost btn-sm" title="Remove chapter" aria-label="Remove chapter" onClick={() => setD({ ...d, chapters: d.chapters.filter((_, j) => j !== i) })}><X size={14} aria-hidden /></button>
               </div>
             ))}
           </div>

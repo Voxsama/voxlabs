@@ -30,10 +30,16 @@ export function ThemeToggle() {
     apply(v);
   };
   return (
-    <select className="input py-1 text-xs" aria-label="Theme" value={pref} onChange={(e) => change(e.target.value as Pref)}>
+    <select
+      className="cursor-pointer rounded-(--radius) border border-transparent bg-transparent py-0.5 text-xs text-neutral-500 hover:border-neutral-700 hover:text-neutral-100"
+      aria-label="Theme"
+      title="Theme"
+      value={pref}
+      onChange={(e) => change(e.target.value as Pref)}
+    >
       <option value="system">System</option>
-      <option value="studio">Studio (dark)</option>
-      <option value="paper">Paper (light)</option>
+      <option value="studio">Studio</option>
+      <option value="paper">Paper</option>
     </select>
   );
 }

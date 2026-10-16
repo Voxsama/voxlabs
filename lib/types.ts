@@ -27,6 +27,13 @@ export interface ProjectSummary extends Project {
   chapter_count: number;
   paragraph_count: number;
   ready_count: number;
+  /** Sum of active version durations. */
+  duration_ms: number;
+  /** Paragraphs queued or generating. */
+  generating_count: number;
+  error_count: number;
+  /** In chapter order, for the segmented progress bar. */
+  chapters: { name: string; paragraph_count: number; ready_count: number }[];
   preview: string | null;
 }
 
@@ -41,6 +48,8 @@ export interface Chapter {
   updated_at: string;
   paragraph_count: number;
   ready_count: number;
+  /** Sum of the active version durations of its paragraphs. */
+  duration_ms: number;
 }
 
 export interface Paragraph {

@@ -1,6 +1,7 @@
 "use client";
+import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
-import { formatMs, plainText } from "@/lib/text";
+import { formatMs, isPauseOnly, plainText } from "@/lib/text";
 import type { Paragraph } from "@/lib/types";
 
 export interface TimelineItem {
@@ -22,11 +23,15 @@ interface Props {
   timeline: TimelineItem[];
   paragraphs: Paragraph[];
   onCurrent: (paragraphId: string | null) => void;
+  /** Playback position (ms in the chapter), for the current row's "0:04 / 0:11" and progress line. */
+  onPosition: (ms: number, playing: boolean) => void;
 }
+
+const RATES = [0.75, 1, 1.25, 1.5, 2];
 
 /** Sticky bottom player: plays the merged chapter WAV, highlights the current paragraph. */
 export const Player = forwardRef<PlayerHandle, Props>(function Player(
-  { chapterId, audioKey, hasAudio, durationMs, timeline, paragraphs, onCurrent },
+  { chapterId, audioKey, hasAudio, durationMs, timeline, paragraphs, onCurrent, onPosition },
   ref,
 ) {
   const audio = useRef<HTMLAudioElement>(null);
@@ -89,6 +94,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
     const ms = a.currentTime * 1000;
     setT(ms);
     lastPos.current = { ms, playing: !a.paused };
+    onPosition(ms, !a.paused);
     const id = currentItem(ms)?.paragraphId ?? null;
     if (id !== lastCurrent.current) {
       lastCurrent.current = id;
@@ -96,22 +102,50 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
     }
   };
 
+  const toggle = () => (playing ? audio.current?.pause() : audio.current?.play().catch(() => {}));
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
+
+  // Space plays/pauses, but only when focus is not in a field or on a control (those use Space themselves).
+  useEffect(() => {
+    if (!src) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      if ((e.target as Element | null)?.closest?.("input, textarea, select, button, a, [contenteditable], [role=dialog]")) return;
+      e.preventDefault();
+      toggleRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [src]);
+
   const textOf = (id: string) => plainText(paragraphs.find((p) => p.id === id)?.text ?? "");
+  const cur = currentItem(t) ?? timeline[0];
+  const curIndex = cur ? paragraphs.findIndex((p) => p.id === cur.paragraphId) : -1;
+  const curWords = cur && !cur.pause ? textOf(cur.paragraphId).split(" ") : [];
+  const pauses = paragraphs.filter((p) => isPauseOnly(p.text)).length;
+  const speech = paragraphs.filter((p) => p.text.trim()).length - pauses;
+  const ib = "btn btn-ghost size-[30px] justify-center p-0 text-neutral-300";
 
   return (
-    <div className="shrink-0 border-t border-neutral-800 bg-neutral-950 px-4 py-2">
+    <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-6 border-t border-neutral-700 bg-neutral-900 px-6 py-3 paper:border-neutral-700">
       <audio
         ref={audio}
         src={src}
         preload="metadata"
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          setPlaying(true);
+          onPosition(lastPos.current.ms, true);
+        }}
         onPause={() => {
           setPlaying(false);
           lastPos.current.playing = false;
+          onPosition(lastPos.current.ms, false);
         }}
         onEnded={() => {
           setPlaying(false);
           lastPos.current = { ms: 0, playing: false };
+          onPosition(0, false);
         }}
         onTimeUpdate={onTime}
         onLoadedMetadata={() => {
@@ -125,57 +159,73 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
           }
         }}
       />
-      <div className="flex items-center gap-3">
-        <button className="btn btn-sm" disabled={!src} onClick={() => step(-1)} title="Previous paragraph" aria-label="Previous paragraph">⏮</button>
+      <div className="flex items-center gap-1.5 tabular-nums">
+        <button className={ib} disabled={!src} onClick={() => step(-1)} title="Previous paragraph" aria-label="Previous paragraph"><SkipBack size={16} aria-hidden /></button>
         <button
-          className="btn btn-primary w-20 justify-center"
+          className="btn btn-primary size-9 justify-center rounded-full p-0 paper:size-10 paper:border-purple-500 paper:bg-purple-500 paper:text-on-accent paper:hover:bg-purple-500/90"
           disabled={!src}
-          onClick={() => (playing ? audio.current?.pause() : audio.current?.play().catch(() => {}))}
+          onClick={toggle}
+          aria-label={playing ? "Pause" : "Play"}
+          title={playing ? "Pause (Space)" : "Play (Space)"}
         >
-          {playing ? "❚❚ Pause" : "▶ Play"}
+          {playing ? <Pause size={16} fill="currentColor" aria-hidden /> : <Play size={16} fill="currentColor" aria-hidden />}
         </button>
-        <button className="btn btn-sm" disabled={!src} onClick={() => step(1)} title="Next paragraph" aria-label="Next paragraph">⏭</button>
-        <span className="w-28 text-xs tabular-nums text-neutral-400">
-          {formatMs(t)} / {formatMs(durationMs)}
+        <button className={ib} disabled={!src} onClick={() => step(1)} title="Next paragraph" aria-label="Next paragraph"><SkipForward size={16} aria-hidden /></button>
+        <span className="ml-2.5 min-w-[92px] text-[13px] text-neutral-100">
+          {formatMs(t)} <span className="text-neutral-500">/ {formatMs(durationMs)}</span>
         </span>
-        <input
-          type="range"
-          className="flex-1 accent-purple-500"
-          min={0}
-          max={Math.max(1, durationMs)}
-          value={Math.min(t, durationMs)}
-          disabled={!src}
-          onChange={(e) => seekMs(Number(e.target.value))}
-        />
-        <select className="input w-20" value={rate} onChange={(e) => setRate(Number(e.target.value))} title="Playback speed">
-          {[0.75, 1, 1.25, 1.5, 2].map((r) => (
-            <option key={r} value={r}>{r}x</option>
-          ))}
-        </select>
+        <button
+          className="btn btn-sm min-w-10 justify-center"
+          onClick={() => setRate(RATES[(RATES.indexOf(rate) + 1) % RATES.length])}
+          aria-label={`Playback speed ${rate}x`}
+          title="Playback speed"
+        >
+          {rate}x
+        </button>
       </div>
-      {/* Timeline strip: one block per paragraph, width proportional to its length. */}
-      {src && durationMs > 0 && (
-        <div className="mt-2 flex h-7 w-full overflow-hidden rounded">
-          {timeline.map((i) => {
-            const active = t >= i.startMs && t < i.startMs + i.durationMs;
-            return (
-              <button
-                key={i.paragraphId}
-                title={i.pause ? `Pause ${formatMs(i.durationMs)}` : textOf(i.paragraphId)}
-                aria-label={i.pause ? `Pause ${formatMs(i.durationMs)}` : undefined}
-                onClick={() => seekMs(i.startMs + 1, playing)}
-                style={{ width: `${(100 * i.durationMs) / durationMs}%` }}
-                className={`h-full min-w-px truncate border-r border-neutral-950 px-1 text-left text-[10px] leading-7 ${
-                  i.pause ? "bg-neutral-800 text-neutral-500" : active ? "bg-purple-500 text-on-accent" : "bg-purple-900/70 text-purple-100"
-                }`}
-              >
-                {i.pause ? "⏸" : textOf(i.paragraphId)}
-              </button>
-            );
-          })}
+      <div className="min-w-0">
+        <div className="mb-1.5 flex justify-between gap-4 text-[11px] text-neutral-500 tabular-nums">
+          <span className="min-w-0">
+            {!src ? "Generate paragraphs to listen to this chapter." : cur?.pause ? <b className="font-medium text-neutral-300">Pause</b> : curIndex >= 0 && (
+              <>
+                <b className="font-medium text-neutral-300">¶ {curIndex + 1}</b> · {curWords.slice(0, 8).join(" ")}{curWords.length > 8 ? "…" : ""}
+              </>
+            )}
+          </span>
+          <span className="shrink-0">{speech} paragraphs · {pauses} pauses</span>
         </div>
-      )}
-      {!src && <div className="mt-1 text-xs text-neutral-500">Generate paragraphs to listen to this chapter.</div>}
+        {/* One block per audio item, width proportional to its length. A transparent range input on top does the seeking (click, drag, arrow keys). */}
+        <div className="relative h-[22px] rounded-sm has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring">
+          <div className="flex h-full gap-0.5" aria-hidden>
+            {src && durationMs > 0 && timeline.map((i) => {
+              const end = i.startMs + i.durationMs;
+              const cls = i.pause
+                ? "h-2 self-center border-y border-dashed border-neutral-600"
+                : t >= i.startMs && t < end ? "rounded-sm bg-purple-500"
+                : end <= t ? "rounded-sm bg-neutral-500/60"
+                : "rounded-sm bg-neutral-700";
+              return <span key={i.paragraphId} className={`min-w-0.5 ${cls}`} style={{ flex: `${i.durationMs} 1 0` }} />;
+            })}
+            {!src && <span className="flex-1 rounded-sm border border-dashed border-neutral-700" />}
+          </div>
+          {src && durationMs > 0 && (
+            <span className="pointer-events-none absolute -top-1 -bottom-1 w-0.5 rounded-full bg-neutral-100" style={{ left: `${(100 * Math.min(t, durationMs)) / durationMs}%` }}>
+              <span className="absolute -top-1 -left-[3px] size-2 rounded-full bg-neutral-100" />
+            </span>
+          )}
+          <input
+            type="range"
+            aria-label="Seek"
+            aria-valuetext={`${formatMs(t)} of ${formatMs(durationMs)}`}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
+            min={0}
+            max={Math.max(1, durationMs)}
+            value={Math.min(t, durationMs)}
+            disabled={!src}
+            onChange={(e) => seekMs(Number(e.target.value))}
+          />
+        </div>
+      </div>
     </div>
   );
 });

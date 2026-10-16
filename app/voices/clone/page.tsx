@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Check, Play } from "lucide-react";
 import type { Voice } from "@/components/VoicePicker";
 import { ErrorText, Field } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -169,9 +170,9 @@ export default function ClonePage() {
                     </Field>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <button className="btn btn-sm" onClick={playSelection}>▶ Play selection</button>
+                    <button className="btn btn-sm" onClick={playSelection}><Play size={14} aria-hidden />Play selection</button>
                     <span className={selOk ? "text-green-400" : "text-red-400"}>
-                      Selection {sel.toFixed(1)}s {selOk ? "✓" : `(must be ${MIN_SEC}–${MAX_SEC}s)`}
+                      Selection {sel.toFixed(1)}s {selOk ? <Check size={14} className="inline align-[-2px]" aria-label="OK" /> : `(must be ${MIN_SEC}–${MAX_SEC}s)`}
                     </span>
                     <span className="text-neutral-500">Total {duration.toFixed(1)}s</span>
                   </div>
@@ -332,7 +333,7 @@ function CreatedVoice({ voice, language }: { voice: Voice; language: string }) {
       <div className="text-xs text-neutral-500">ID: {voice.id}. It is starred and appears under “My voices / clones”.</div>
       <div className="flex gap-2">
         <input className="input" value={text} onChange={(e) => setText(e.target.value)} />
-        <button className="btn btn-primary" disabled={busy} onClick={speak}>{busy ? "..." : "▶ Try it"}</button>
+        <button className="btn btn-primary" disabled={busy} onClick={speak}><Play size={14} aria-hidden />{busy ? "..." : "Try it"}</button>
       </div>
       <audio ref={audio} controls className="w-full" />
       <ErrorText error={error} />

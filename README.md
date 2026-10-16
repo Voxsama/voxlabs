@@ -98,11 +98,12 @@ The tag starts `.github/workflows/release.yml`. It builds the Docker image `ghcr
 1. **Projects → New project.** Set the name, language (e.g. Hindi), model, and default voice. Optionally attach chapter files.
 2. In the studio, **+ Add** a chapter or **Import** files. Then **Paste text**.
 3. Click **Generate**. Listen with the player at the bottom.
-4. Fix a line: edit the text, then click **⟳ Regenerate** on that line or press Ctrl/Cmd+Enter.
+4. Fix a line: edit the text, then click **Regenerate** on that line or press Ctrl/Cmd+Enter.
    - Enter at the end of a line adds a new line below. Enter at the start adds one above. Enter in the middle splits the line.
    - Backspace on an empty line deletes it. Backspace at the start of a line merges it with the one above. Delete at the end merges the next line in.
    - Arrow up and down move between lines. Pasting several lines into a row creates one row per line.
-   - Hover a row (or Tab into it) for its toolbar: Play, Regenerate, History, "+ Text above", "+ Pause above", "+ Text" and "+ Pause". Click the empty space under the last line to add a line.
+   - Hover a row (or Tab into it) for its actions: Play, Regenerate, History, Text above, Pause above and Delete. Click the empty space under the last line to add a line.
+   - Space plays or pauses the chapter when you are not typing in a field.
 5. **Export** when every paragraph is generated.
 
 ### Themes

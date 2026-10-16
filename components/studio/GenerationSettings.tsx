@@ -46,8 +46,8 @@ export function ParagraphSettingsChip({
   );
   return (
     <>
-      <button type="button" className="btn btn-ghost btn-sm text-neutral-400" title="Paragraph voice settings" onClick={() => setOpen(true)}>
-        🎙 {mark(!!p.voice_id, s.voiceName || "no voice")} · {mark(p.emotion != null, s.emotion || "auto")} · {mark(p.speed != null, x(s.speed))}
+      <button type="button" className="chip cursor-pointer hover:border-neutral-500" title="Paragraph voice settings" onClick={() => setOpen(true)}>
+        {mark(!!p.voice_id, s.voiceName || "no voice")} · {mark(p.emotion != null, s.emotion || "auto")} · {mark(p.speed != null, x(s.speed))}
         {s.volume !== 1 && <> · vol {mark(p.volume != null, x(s.volume))}</>}
       </button>
       {open && <ParagraphSettingsModal p={p} chapter={chapter} project={project} onPatch={onPatch} onClose={() => setOpen(false)} />}

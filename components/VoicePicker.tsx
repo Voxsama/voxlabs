@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Mic, Play, Star } from "lucide-react";
 import { api } from "@/lib/api";
 import { LANGUAGES } from "@/lib/constants";
 import type { FavoriteVoice } from "@/lib/types";
@@ -188,10 +189,11 @@ export function VoiceBrowser({
               <button
                 className="btn btn-sm btn-ghost w-8 justify-center"
                 title={v.preview_file_url ? "Play preview" : "Play a short generated sample (uses a few credits the first time)"}
+                aria-label={`Play preview of ${v.name}`}
                 disabled={previewing === v.id}
                 onClick={() => previewVoice(v, (b) => setPreviewing(b ? v.id : null)).catch((e) => setError(e.message))}
               >
-                {previewing === v.id ? "…" : "▶"}
+                {previewing === v.id ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Play size={14} aria-hidden />}
               </button>
               <div className="min-w-0 flex-1">
                 <div className="font-medium">
@@ -201,8 +203,8 @@ export function VoiceBrowser({
                   {[voiceLangs(v), v.gender, v.tagline || v.description].filter(Boolean).join(" · ")}
                 </div>
               </div>
-              <button className="btn btn-sm btn-ghost" title={fav ? "Unstar" : "Star"} onClick={() => toggleFav(v)}>
-                {fav ? "★" : "☆"}
+              <button className="btn btn-sm btn-ghost" title={fav ? "Unstar" : "Star"} aria-label={`${fav ? "Unstar" : "Star"} ${v.name}`} aria-pressed={fav} onClick={() => toggleFav(v)}>
+                <Star size={14} aria-hidden className={fav ? "fill-current text-purple-300" : ""} />
               </button>
               {tab === "mine" && (
                 <button className="btn btn-sm btn-danger" onClick={() => remove(v)}>Delete</button>
@@ -243,7 +245,7 @@ export function VoicePicker({
   return (
     <>
       <button type="button" className={`btn ${className}`} onClick={() => setOpen(true)} title="Choose voice">
-        🎙 {value?.name || (allowInherit ? inheritLabel : "Choose a voice")}
+        <Mic size={14} aria-hidden />{value?.name || (allowInherit ? inheritLabel : "Choose a voice")}
       </button>
       {open && (
         <Modal title="Choose a voice" onClose={() => setOpen(false)} wide>

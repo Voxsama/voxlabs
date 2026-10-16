@@ -13,12 +13,17 @@ Voxlabs is a dense, keyboard-first audiobook editor. Keep changes small and cons
 - Accent is purple: `#7c3aed` as the reference hex, Tailwind `purple-500` for bars, sliders (`accent-purple-500`) and done states, `purple-900`/`purple-950/40` for chips and the current row. Use `text-purple-300` for emphasis (overridden values, "In use"). The logo uses `var(--logo-accent)`.
 - Primary buttons are white (`btn-primary`), not purple. Do not add new accent colours.
 - Never hard-code white/black/hex in components; use the neutral/purple/amber/red/green/sky scale so both themes work (`text-on-accent` on purple fills). Check both themes (`#theme=studio` and `#theme=paper`).
-- Reuse the classes in `app/globals.css`; never re-create them inline: `btn`, `btn-primary`, `btn-ghost`, `btn-sm`, `btn-danger`, `input`, `label`, `card`.
+- Reuse the classes in `app/globals.css`; never re-create them inline: `btn`, `btn-primary`, `btn-ghost`, `btn-sm`, `btn-danger`, `input`, `label`, `card`, plus:
+  - `chip`: small bordered pill for settings and status ("Rohan · calm · 1.0x", pause lengths).
+  - `section-label`: small uppercase heading ("CREDITS", "CHAPTERS · 6").
+  - `editor-col`: the editor text column (full width in Studio, a centred 820px page (760px of text) in Paper).
+- Theme tokens (set per theme in `app/globals.css`): `--color-accent` (`text-accent`, nav active edge, credits bar), `--radius` / `--radius-lg` (use `rounded-(--radius)` / `rounded-(--radius-lg)`, not `rounded-md`/`rounded-lg`), `--text-body` (`text-(length:--text-body)`, 13px Studio / 14px Paper).
+- `paper:` variant applies a utility only in the Paper theme (`paper:border-neutral-700`). Use it for real per-theme differences only; most classes should flip through the colour remap.
 - Reuse components instead of writing new ones:
   - `Modal` (title, onClose, `wide`; Escape and backdrop click close it), `Field` (label + control), `ErrorText` from `components/ui.tsx`.
   - `Logo` from `components/Logo.tsx` for the wordmark (system fonts only, has `aria-label`).
   - `VoicePicker` / `VoiceBrowser` from `components/VoicePicker.tsx` for any voice choice.
-- Layout: fixed 176px sidebar (`components/Nav.tsx`, `w-44`), content on the right. Text sizes stay small: `text-sm` UI, `text-xs` meta, `text-[15px]` editor text.
+- Layout: fixed 208px sidebar (`components/Nav.tsx`, `w-52`), content on the right. Text sizes stay small: `--text-body` UI, `text-xs` meta, `.script` (17px) editor text.
 
 ## Editor rules (components/studio/ParagraphRow.tsx)
 
@@ -30,11 +35,12 @@ Rows are dense and keyboard-driven. Never break these keys (skipped during IME c
 - Backspace at start: on an empty row deletes it; otherwise merges into the row above (just moves up if that row is a pause).
 - Delete at end: merges the next row in (not a pause row).
 - ArrowUp/ArrowDown on the first/last visual line: move to the previous/next text row.
+- Space (`components/studio/Player.tsx`): play/pause, only when focus is not in a field or on a control.
 - Multi-line paste: one row per line; pause lines stay their own rows.
 
 Other rules:
 
-- Row actions (Play, Regenerate, History, + Text/Pause above/below, Delete) live in a floating toolbar at the row's top-right (`absolute -top-4 right-2`, card background, border, shadow), so rows never change height on hover. It shows with `group-hover:opacity-100 group-focus-within:opacity-100` and is `pointer-events-none` while hidden. Keep `group-focus-within` on any hover-only control so keyboard users can reach it.
+- Row actions (Play, Regenerate, History, Text above, Pause above, Delete) sit inline at the end of the row's meta line (`ml-auto hidden group-hover:flex group-focus-within:flex`), so they reserve no space and rows do not change height on hover. Labels show only on wide rows (`@[56rem]:inline`); narrower rows get icons with `aria-label`. Keep `group-focus-within` on any hover-only control so keyboard users can reach it.
 - Status colours (left border and status text): purple done (`border-purple-500`), amber stale (`border-amber-400`, "Changed since generated") and queued (`border-amber-500`), sky generating (`border-sky-400 animate-pulse`), red error (`border-red-500`, `text-red-400`). Do not reuse these colours for other meanings.
 - Hindi/Devanagari text wraps and never truncates in the editor or history: no `truncate`, `line-clamp` or fixed heights on paragraph text. The textarea auto-grows.
 - Keep the Devanagari font stack on `body` in `app/globals.css` and the `lang={project.language}` attributes in `ParagraphRow.tsx` and `Studio.tsx`.
@@ -44,7 +50,7 @@ Other rules:
 - Text contrast at least 4.5:1 on `neutral-950`/`neutral-900`. `neutral-500` is the lowest for small text; do not go darker.
 - Visible focus on every control. `.input` and the editor textarea use `outline-none`, so give them a visible focus style (border or ring); do not remove focus outlines elsewhere.
 - Every input has a label (`Field`, `<label>`, or `aria-label`).
-- Icon-only buttons (✕, ▶, ⟳, −1s) need an `aria-label`; `title` alone is not enough.
+- Icons are lucide-react (`size={14}`, `aria-hidden`), never emoji or Unicode symbols. Icon-only buttons (and text like −1s) need an `aria-label`; `title` alone is not enough.
 
 ## Review loop
 

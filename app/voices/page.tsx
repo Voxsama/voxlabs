@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { Play } from "lucide-react";
 import { VoiceBrowser, type Picked } from "@/components/VoicePicker";
 import { ErrorText } from "@/components/ui";
 import { LANGUAGES, MODELS } from "@/lib/constants";
@@ -58,7 +59,7 @@ export default function VoicesPage() {
             Speed {speed.toFixed(2)}
             <input type="range" min={0.6} max={1.5} step={0.05} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="accent-purple-500" />
           </label>
-          <button className="btn btn-primary" disabled={!voice || busy || !text.trim()} onClick={speak}>{busy ? "Generating..." : "▶ Speak"}</button>
+          <button className="btn btn-primary" disabled={!voice || busy || !text.trim()} onClick={speak}><Play size={14} aria-hidden />{busy ? "Generating..." : "Speak"}</button>
           <audio ref={audio} controls className="h-8" />
         </div>
         <ErrorText error={error} />

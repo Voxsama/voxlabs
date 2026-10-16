@@ -4,7 +4,11 @@
 @theme {
   --color-on-accent: #ffffff;
   --color-ring: #ffffff;
+  --color-accent: #a78bfa;
 }
+
+/* paper:… applies a utility only in the Paper theme. */
+@custom-variant paper (&:where(html[data-theme="paper"] *));
 
 /* Themes remap Tailwind's colour variables, so existing classes flip. The bootstrap script in layout.tsx sets data-theme. */
 :root, html[data-theme="studio"] {
@@ -22,7 +26,11 @@
   --color-purple-500: #7c3aed; /* brand violet: 5.7:1 with white text */
   --color-on-accent: #ffffff;
   --color-ring: #ffffff;
+  --color-accent: #a78bfa; /* nav active edge, credits bar */
   --logo-accent: #a78bfa;
+  --radius: 4px;
+  --radius-lg: 6px;
+  --text-body: 13px;
   --font-heading: var(--font-archivo);
   --font-body: var(--font-space-grotesk);
   --font-devanagari: var(--font-noto-devanagari);
@@ -65,7 +73,11 @@ html[data-theme="paper"] {
   --color-sky-400: #2563eb;
   --color-on-accent: #ffffff;
   --color-ring: #1e3a5f;
+  --color-accent: #1e3a5f;
   --logo-accent: #7c3aed;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --text-body: 14px;
   --font-heading: var(--font-outfit);
   --font-body: var(--font-work-sans);
   --font-devanagari: var(--font-noto-devanagari);
@@ -78,19 +90,28 @@ html[data-theme="paper"] {
 }
 
 @layer base {
-  body { @apply bg-neutral-950 text-neutral-100 antialiased; font-family: var(--font-body), var(--font-devanagari), "Noto Sans Devanagari", system-ui, sans-serif; }
+  body { @apply bg-neutral-950 text-neutral-100 antialiased; font-size: var(--text-body); line-height: 1.45; font-family: var(--font-body), var(--font-devanagari), "Noto Sans Devanagari", system-ui, sans-serif; }
   h1, h2, h3 { font-family: var(--font-heading), var(--font-devanagari), sans-serif; }
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed; }
-  .btn-primary { @apply border-neutral-100 bg-neutral-100 text-neutral-950 hover:bg-neutral-300; }
+  .btn { @apply inline-flex items-center gap-1.5 rounded-(--radius) border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-(length:--text-body) font-medium hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed paper:bg-neutral-900 paper:hover:bg-neutral-800; }
+  .btn-primary { @apply border-neutral-100 bg-neutral-100 font-semibold text-neutral-950 hover:bg-neutral-300; }
+  /* Paper's Generate is green with dark ink: #0f172a on #059669 is 4.8:1. Hover lightens, so contrast only rises. */
+  .btn-primary:where(html[data-theme="paper"] *) { @apply border-green-500 bg-green-500 text-neutral-100 hover:bg-green-500/85; }
   .btn-danger { @apply border-red-800 bg-red-950 text-red-200 hover:bg-red-900; }
   .btn-ghost { @apply border-transparent bg-transparent hover:bg-neutral-800; }
   .btn-sm { @apply px-2 py-1 text-xs; }
-  .input { @apply w-full rounded-md border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-sm focus:border-neutral-400; }
+  .input { @apply w-full rounded-(--radius) border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-(length:--text-body) focus:border-neutral-400; }
   .label { @apply mb-1 block text-xs font-medium text-neutral-400; }
-  .card { @apply rounded-lg border border-neutral-800 bg-neutral-900; }
+  /* Small uppercase heading: "CREDITS", "CHAPTERS · 6", "RECENT". */
+  .section-label { @apply text-[11px] font-medium tracking-[.08em] text-neutral-500 uppercase; }
+  .card { @apply rounded-(--radius-lg) border border-neutral-800 bg-neutral-900 paper:border-neutral-700; }
+  /* Bordered pill for settings and status ("Rohan · calm · 1.0x"). */
+  .chip { @apply inline-flex h-[22px] items-center gap-1 rounded-(--radius) border border-neutral-700 bg-neutral-900 px-2 text-[11.5px] whitespace-nowrap text-neutral-300 paper:bg-neutral-800 paper:text-xs paper:text-neutral-500; }
+  /* Editor text column: full width in Studio, a centred 820px page (760px of text) in Paper. */
+  .editor-col { max-width: none; }
+  :where(html[data-theme="paper"]) .editor-col { max-width: 820px; margin-inline: auto; }
   .script { font-family: var(--font-devanagari), var(--font-body), sans-serif; font-size: 17px; line-height: 1.8; }
-  :where(html[data-theme="paper"]) .card { box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .04); }
+  :where(html[data-theme="paper"]) :is(.card, .btn:not(.btn-ghost)) { box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .04); }
 }

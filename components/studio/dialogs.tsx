@@ -1,4 +1,5 @@
 "use client";
+import { AlertTriangle, CheckCircle2, Clipboard, Download, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ErrorText, Field, Modal } from "@/components/ui";
@@ -68,7 +69,7 @@ export function PasteDialog({ chapter, hasParagraphs, onClose, onDone }: { chapt
           <div className="pb-2 text-sm text-neutral-400">{count} paragraphs</div>
           <div className="ml-auto flex gap-2">
             <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={!count || busy} onClick={submit}>{busy ? "Adding..." : "Add paragraphs"}</button>
+            <button className="btn btn-primary" disabled={!count || busy} onClick={submit}><Clipboard size={16} aria-hidden />{busy ? "Adding..." : "Add paragraphs"}</button>
           </div>
         </div>
         <ErrorText error={error} />
@@ -111,7 +112,7 @@ export function ImportFilesDialog({ projectId, onClose, onDone }: { projectId: s
         <ErrorText error={error} />
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={!files.length || busy} onClick={submit}>{busy ? "Importing..." : `Import ${files.length} file(s)`}</button>
+          <button className="btn btn-primary" disabled={!files.length || busy} onClick={submit}><Upload size={16} aria-hidden />{busy ? "Importing..." : `Import ${files.length} file(s)`}</button>
         </div>
       </div>
     </Modal>
@@ -167,7 +168,7 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
           </select>
         </Field>
         {scope === "pick" && (
-          <div className="max-h-40 space-y-1 overflow-auto rounded-md border border-neutral-800 p-2">
+          <div className="max-h-40 space-y-1 overflow-auto rounded-(--radius) border border-neutral-800 p-2">
             {chapters.map((c) => (
               <label key={c.id} className="flex items-center gap-2">
                 <input
@@ -219,7 +220,8 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
           </label>
         )}
         {check && !check.ok && (
-          <div className="rounded-md border border-red-900 bg-red-950/50 p-3 text-red-200">
+          <div className="rounded-(--radius) border border-red-900 bg-red-950/50 p-3 text-red-200">
+            <AlertTriangle size={14} className="mr-1.5 inline align-[-2px]" aria-hidden />
             {check.missing.length} paragraph(s) are not generated yet:
             <ul className="mt-1 list-disc pl-5 text-xs">
               {check.missing.slice(0, 8).map((m, i) => <li key={i}>{m.chapter} #{m.position}: {m.text}</li>)}
@@ -227,15 +229,16 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
           </div>
         )}
         {check?.ok && check.stale.length > 0 && (
-          <div className="rounded-md border border-amber-900 bg-amber-950/40 p-3 text-amber-200">
+          <div className="rounded-(--radius) border border-amber-900 bg-amber-950/40 p-3 text-amber-200">
+            <AlertTriangle size={14} className="mr-1.5 inline align-[-2px]" aria-hidden />
             {check.stale.length} paragraph(s) were edited after generating. Their old audio will be exported.
           </div>
         )}
-        {check?.ok && !check.stale.length && <div className="text-green-400">All paragraphs are generated. Ready to export.</div>}
+        {check?.ok && !check.stale.length && <div className="flex items-center gap-1.5 text-green-400"><CheckCircle2 size={14} aria-hidden />All paragraphs are generated. Ready to export.</div>}
         <ErrorText error={error} />
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={!check?.ok || busy || (scope === "pick" && !picked.size)} onClick={run}>{busy ? "Exporting..." : "Export"}</button>
+          <button className="btn btn-primary" disabled={!check?.ok || busy || (scope === "pick" && !picked.size)} onClick={run}><Download size={16} aria-hidden />{busy ? "Exporting..." : "Export"}</button>
         </div>
       </div>
     </Modal>
@@ -282,7 +285,7 @@ export function ProjectSettingsDialog({ project, onClose, onSaved }: { project: 
         <p className="text-xs text-neutral-500">Changing voice, speed, volume, emotion, sample rate or bit depth marks paragraphs as changed; Generate will redo them.</p>
         <ErrorText error={error} />
         <div className="flex justify-between gap-2">
-          <button className="btn btn-danger" onClick={del}>Delete project</button>
+          <button className="btn btn-danger" onClick={del}><Trash2 size={16} aria-hidden />Delete project</button>
           <div className="flex gap-2">
             <button className="btn" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" onClick={save}>Save</button>

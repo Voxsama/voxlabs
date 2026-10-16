@@ -1,10 +1,11 @@
 "use client";
+import { AlertTriangle, AudioLines, Check, CheckCircle2, ChevronDown, ChevronRight, Clipboard, Download, Loader2, Pencil, Plus, RefreshCw, SlidersHorizontal, Square, Timer, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VoicePicker } from "@/components/VoicePicker";
 import { ErrorText } from "@/components/ui";
 import { api } from "@/lib/api";
-import { LANGUAGES, MODELS } from "@/lib/constants";
+import { LANGUAGES, MODELS, SAMPLE_RATES } from "@/lib/constants";
 import { effectiveSettings, isStale, needsGeneration } from "@/lib/settings";
 import { isPauseOnly } from "@/lib/text";
 import type { Chapter, Paragraph, Project, StudioEvent } from "@/lib/types";
@@ -26,6 +27,8 @@ export function Studio({ projectId }: { projectId: string }) {
   const [paragraphs, setParagraphs] = useState<Paragraph[]>([]);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
+  const [pos, setPos] = useState({ ms: 0, playing: false });
+  const onPosition = useCallback((ms: number, playing: boolean) => setPos({ ms, playing }), []);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [dialog, setDialog] = useState<null | "paste" | "import" | "export" | "settings">(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ export function Studio({ projectId }: { projectId: string }) {
     [chapterId, chapterVoiceId, chapterVoiceName],
   );
   const stats = useMemo(() => {
-    let pending = 0, busy = 0, done = 0, speakable = 0, errors = 0;
+    let pending = 0, busy = 0, done = 0, speakable = 0, errors = 0, changed = 0;
     for (const p of paragraphs) {
       if (!project || !p.text.trim() || isPauseOnly(p.text)) continue;
       const s = effectiveSettings(p, chapterVoice, project);
@@ -114,9 +117,10 @@ export function Studio({ projectId }: { projectId: string }) {
       if (p.status === "queued" || p.status === "generating") busy++;
       else if (needsGeneration(p, s)) pending++;
       if (p.active_version_id && !isStale(p, s)) done++;
+      else if (p.active_version_id) changed++;
       if (p.status === "error") errors++;
     }
-    return { pending, busy, done, speakable, errors };
+    return { pending, busy, done, speakable, errors, changed };
   }, [paragraphs, chapterVoice, project]);
 
   // ---- actions
@@ -231,29 +235,45 @@ export function Studio({ projectId }: { projectId: string }) {
     return <div className="p-8"><ErrorText error={error} />{!error && "Loading..."}</div>;
   }
 
+  const curItem = timeline?.timeline.find((i) => i.paragraphId === current);
+  const readyTotal = chapters.reduce((n, c) => n + c.ready_count, 0);
+  const paragraphTotal = chapters.reduce((n, c) => n + c.paragraph_count, 0);
+  const totalMs = chapters.reduce((n, c) => n + c.duration_ms, 0);
+  const minutes = totalMs ? Math.max(1, Math.round(totalMs / 60000)) : 0;
+  const meta = [
+    LANGUAGES.find((l) => l.code === project.language)?.name ?? project.language,
+    (MODELS.find((m) => m.id === project.model_id)?.label ?? project.model_id).replace(/ \(.*\)$/, ""),
+    project.voice_name || "No default voice",
+    SAMPLE_RATES.find((r) => r.value === project.sample_rate)?.label ?? `${project.sample_rate / 1000} kHz`,
+  ].join(" · ");
+  const sep = <span className="h-3 w-px bg-neutral-700" aria-hidden />;
+  const ghost = "btn btn-sm btn-ghost text-neutral-300";
+
   return (
     <div className="flex h-full">
-      {/* Chapters sidebar */}
-      <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800">
-        <div className="border-b border-neutral-800 p-3">
-          <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-300">← Projects</Link>
-          <div className="mt-1 truncate font-semibold" title={project.name}>{project.name}</div>
-          <div className="text-xs text-neutral-500">
-            {LANGUAGES.find((l) => l.code === project.language)?.name ?? project.language} · {MODELS.find((m) => m.id === project.model_id)?.label ?? project.model_id}
-          </div>
-          <div className="truncate text-xs text-neutral-500">🎙 {project.voice_name || "No default voice"}</div>
-          <button className="btn btn-sm mt-2" onClick={() => setDialog("settings")}>Project settings</button>
+      {/* Chapters column */}
+      <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800 bg-neutral-900 paper:border-neutral-700 paper:bg-neutral-950">
+        <div className="border-b border-neutral-800 px-4 pt-[18px] pb-3.5 paper:border-transparent">
+          <Link href="/" className="section-label mb-1.5 inline-flex items-center gap-1 hover:text-neutral-300">
+            Projects <ChevronRight size={14} aria-hidden />
+          </Link>
+          <h2 className="text-xl leading-tight font-bold break-words">{project.name}</h2>
+          <div className="mt-1 text-xs text-neutral-500">{meta}</div>
+          <button className="btn btn-sm mt-3 w-full justify-center" onClick={() => setDialog("settings")}>
+            <SlidersHorizontal size={14} aria-hidden /> Project settings
+          </button>
         </div>
-        <div className="flex items-center justify-between px-3 pt-3 text-sm font-medium">
-          Chapters
-          <span className="flex gap-1">
-            <button className="btn btn-sm" onClick={() => setDialog("import")} title="Import .txt/.docx/.zip as chapters">Import</button>
-            <button className="btn btn-sm" onClick={addChapter}>+ Add</button>
+        <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
+          <span className="section-label whitespace-nowrap">Chapters · {chapters.length}</span>
+          <span className="flex gap-0.5">
+            <button className={ghost} onClick={() => setDialog("import")} title="Import .txt/.docx/.zip as chapters"><Upload size={14} aria-hidden /> Import</button>
+            <button className={ghost} onClick={addChapter}><Plus size={14} aria-hidden /> Add</button>
           </span>
         </div>
-        <div className="min-h-0 flex-1 space-y-0.5 overflow-auto p-2">
+        <div className="min-h-0 flex-1 space-y-px overflow-auto px-2 pb-2 tabular-nums">
           {chapters.map((c) => {
             const complete = c.paragraph_count > 0 && c.ready_count >= c.paragraph_count;
+            const on = c.id === chapterId;
             return (
               <div
                 key={c.id}
@@ -263,18 +283,36 @@ export function Studio({ projectId }: { projectId: string }) {
                 onDrop={() => dropOn(c.id)}
                 onClick={() => setChapterId(c.id)}
                 onDoubleClick={() => renameChapter(c)}
-                className={`group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm ${c.id === chapterId ? "bg-neutral-800" : "hover:bg-neutral-900"}`}
+                title="Drag to reorder, double-click to rename"
+                className={`group cursor-pointer rounded-(--radius) border-l-2 px-2.5 pt-[9px] pb-2.5 ${on ? "border-purple-500 bg-neutral-800 paper:bg-neutral-900 paper:shadow-sm" : "border-transparent hover:bg-neutral-800/60"}`}
               >
-                <span className="cursor-grab text-neutral-600" title="Drag to reorder">⋮⋮</span>
-                <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                <span className="text-[10px] text-neutral-500">{c.ready_count}/{c.paragraph_count}</span>
-                {complete && <span className="text-green-400">✓</span>}
-                <button className="hidden text-xs text-neutral-500 hover:text-neutral-100 group-hover:inline" aria-label={`Rename ${c.name}`} onClick={(e) => { e.stopPropagation(); renameChapter(c); }}>✎</button>
-                <button className="hidden text-xs text-neutral-500 hover:text-red-400 group-hover:inline" aria-label={`Delete ${c.name}`} onClick={(e) => { e.stopPropagation(); deleteChapter(c); }}>🗑</button>
+                <div className="flex items-center gap-1.5">
+                  <button className={`min-w-0 flex-1 truncate text-left text-[13px] ${on ? "font-medium text-neutral-100 paper:text-purple-300" : "text-neutral-300"}`} aria-current={on || undefined}>
+                    {c.name}
+                  </button>
+                  <span className="flex opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+                    <button className="rounded p-0.5 text-neutral-500 hover:text-neutral-100" aria-label={`Rename ${c.name}`} title="Rename" onClick={(e) => { e.stopPropagation(); renameChapter(c); }}><Pencil size={13} aria-hidden /></button>
+                    <button className="rounded p-0.5 text-neutral-500 hover:text-red-400" aria-label={`Delete ${c.name}`} title="Delete" onClick={(e) => { e.stopPropagation(); deleteChapter(c); }}><Trash2 size={13} aria-hidden /></button>
+                  </span>
+                  <span className={`flex items-center gap-1 text-xs ${complete ? "font-medium text-green-400" : "text-neutral-500"}`}>
+                    {complete && <Check size={14} aria-hidden />}
+                    {c.ready_count}/{c.paragraph_count}
+                  </span>
+                </div>
+                <div className="mt-[7px] h-0.5 overflow-hidden rounded-full bg-neutral-700/60 paper:h-1 paper:bg-neutral-700">
+                  <div
+                    className={`h-full rounded-full ${complete ? "bg-green-500/70 paper:bg-green-500" : "bg-neutral-500 paper:bg-purple-500"}`}
+                    style={{ width: `${c.paragraph_count ? (100 * c.ready_count) / c.paragraph_count : 0}%` }}
+                  />
+                </div>
               </div>
             );
           })}
           {!chapters.length && <div className="p-3 text-sm text-neutral-500">No chapters. Add one or import files.</div>}
+        </div>
+        <div className="flex justify-between border-t border-neutral-800 px-4 py-3 text-xs text-neutral-500 tabular-nums paper:border-neutral-700">
+          <span>{readyTotal} / {paragraphTotal} paragraphs</span>
+          <span>~{minutes} min</span>
         </div>
       </aside>
 
@@ -282,41 +320,66 @@ export function Studio({ projectId }: { projectId: string }) {
       <section className="flex min-w-0 flex-1 flex-col">
         {chapter ? (
           <>
-            <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 px-4 py-2">
-              <div className="mr-2 font-medium">{chapter.name}</div>
-              <VoicePicker
-                className="btn-sm"
-                value={chapter.voice_id ? { id: chapter.voice_id, name: chapter.voice_name || chapter.voice_id } : null}
-                onChange={setChapterVoice}
-                defaultLanguage={project.language}
-                allowInherit
-                inheritLabel={`Project voice (${project.voice_name || "none"})`}
-              />
-              <button className="btn btn-sm" onClick={() => setDialog("paste")}>Paste text</button>
-              <button className="btn btn-sm" onClick={() => actions.insert(paragraphs.at(-1)?.id ?? "start", { text: "" })}>+ Paragraph</button>
-              <button className="btn btn-sm" onClick={() => actions.insert(paragraphs.at(-1)?.id ?? "start", { pauseMs: 1000 })}>+ Pause</button>
-              <div className="ml-auto flex items-center gap-2">
-                <span className="text-xs text-neutral-400">
-                  {stats.done}/{stats.speakable} generated
-                  {stats.busy > 0 && ` · ${stats.busy} in progress`}
-                  {stats.errors > 0 && <span className="text-red-400"> · {stats.errors} failed</span>}
+            <div className="border-b border-neutral-800 px-6 pt-3 pb-2.5 paper:border-neutral-700 paper:bg-neutral-900">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-lg font-bold">{chapter.name}</h1>
+                <div className="flex items-center gap-3 text-xs text-neutral-500 tabular-nums">
+                  <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-400" aria-hidden /><b className="font-medium text-neutral-300">{stats.done}/{stats.speakable}</b> generated</span>
+                  {sep}
+                  <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className={`text-sky-400 ${stats.busy ? "animate-spin" : ""}`} aria-hidden /><b className="font-medium text-neutral-300">{stats.busy}</b> generating</span>
+                  {sep}
+                  <span className="inline-flex items-center gap-1.5"><Pencil size={14} className="text-amber-400" aria-hidden /><b className="font-medium text-neutral-300">{stats.changed}</b> changed</span>
+                  {stats.errors > 0 && (
+                    <>
+                      {sep}
+                      <span className="inline-flex items-center gap-1.5 text-red-400"><AlertTriangle size={14} aria-hidden /><b className="font-medium">{stats.errors}</b> failed</span>
+                    </>
+                  )}
+                </div>
+                <div className="ml-auto flex items-center gap-1.5">
+                  {stats.busy > 0 && <button className={ghost} onClick={stop}><Square size={14} aria-hidden /> Stop</button>}
+                  <button className={ghost} onClick={() => generate(true)} title="Regenerate every paragraph"><RefreshCw size={14} aria-hidden /> Regenerate all</button>
+                  <button className="btn btn-sm" onClick={() => setDialog("export")}><Download size={14} aria-hidden /> Export</button>
+                  <button className="btn btn-sm btn-primary" disabled={!stats.pending} onClick={() => generate(false)}>
+                    <AudioLines size={14} aria-hidden /> Generate
+                    {stats.pending > 0 && <span className="rounded-[3px] bg-neutral-950 px-1.5 text-[11px] leading-4 text-neutral-100 tabular-nums paper:rounded-full paper:bg-neutral-100/15 paper:text-neutral-100">{stats.pending}</span>}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                {/* Select-style box around the picker button (not a <label>: the picker's modal renders inside it). */}
+                <div className="inline-flex h-7 items-center gap-1 rounded-(--radius) border border-neutral-700 bg-neutral-900 pl-2.5 pr-2 text-[12.5px] hover:border-neutral-600">
+                  <span className="text-neutral-500">Voice</span>
+                  <VoicePicker
+                    className="btn-ghost btn-sm border-0 px-1 hover:bg-transparent"
+                    value={chapter.voice_id ? { id: chapter.voice_id, name: chapter.voice_name || chapter.voice_id } : null}
+                    onChange={setChapterVoice}
+                    defaultLanguage={project.language}
+                    allowInherit
+                    inheritLabel={`Project voice (${project.voice_name || "none"})`}
+                  />
+                  <ChevronDown size={14} className="text-neutral-500" aria-hidden />
+                </div>
+                <span className="mx-1.5 h-[18px] w-px bg-neutral-800 paper:bg-neutral-700" aria-hidden />
+                <button className={ghost} onClick={() => setDialog("paste")}><Clipboard size={14} aria-hidden /> Paste text</button>
+                <button className={ghost} onClick={() => actions.insert(paragraphs.at(-1)?.id ?? "start", { text: "" })}><Plus size={14} aria-hidden /> Paragraph</button>
+                <button className={ghost} onClick={() => actions.insert(paragraphs.at(-1)?.id ?? "start", { pauseMs: 1000 })}><Timer size={14} aria-hidden /> Pause</button>
+                <span
+                  className="ml-auto flex items-center gap-1.5 text-xs text-neutral-500"
+                  title="Enter: new paragraph (splits in the middle, adds above at the start) · Shift+Enter: new line · Backspace at the start: merge with the one above / delete an empty paragraph · Delete at the end: merge the next one · ↑/↓ move between paragraphs · paste several lines to add several paragraphs"
+                >
+                  Play / pause <kbd className="rounded-[3px] border border-neutral-700 px-1 font-sans text-[11px] leading-4">Space</kbd>
+                  Regenerate line <kbd className="rounded-[3px] border border-neutral-700 px-1 font-sans text-[11px] leading-4">Ctrl/⌘ ↵</kbd>
                 </span>
-                {stats.busy > 0 && <button className="btn btn-sm" onClick={stop}>Stop</button>}
-                <button className="btn btn-sm btn-primary" disabled={!stats.pending} onClick={() => generate(false)}>
-                  Generate{stats.pending ? ` (${stats.pending})` : ""}
-                </button>
-                <button className="btn btn-sm" onClick={() => generate(true)} title="Regenerate every paragraph">Regenerate all</button>
-                <button className="btn btn-sm" onClick={() => setDialog("export")}>Export</button>
               </div>
             </div>
             {error && (
-              <div className="px-4 pt-2" onClick={() => setError(null)}>
+              <div className="px-6 pt-2" onClick={() => setError(null)}>
                 <ErrorText error={error + "  (click to dismiss)"} />
               </div>
             )}
-            {/* pt-5 leaves room for the first row's floating toolbar. */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-auto px-14 pt-5 pb-3" lang={project.language}>
-              <div className="mx-auto w-full max-w-[760px] space-y-0.5">
+            <div className="min-h-0 flex-1 overflow-auto px-6 pt-1.5 pb-6 paper:pt-4" lang={project.language}>
+              <div className="editor-col">
                 {paragraphs.map((p, i) => (
                   <ParagraphRow
                     key={p.id}
@@ -325,28 +388,28 @@ export function Studio({ projectId }: { projectId: string }) {
                     chapter={chapterVoice}
                     project={project}
                     current={current === p.id}
+                    playback={current === p.id && curItem ? { elapsedMs: pos.ms - curItem.startMs, durationMs: curItem.durationMs, playing: pos.playing } : null}
                     focusRequest={focusRequest?.id === p.id ? focusRequest : null}
                     actions={actions}
                   />
                 ))}
-                {!paragraphs.length && (
+                {paragraphs.length > 0 ? (
+                  <button
+                    className="mt-2.5 ml-[45px] flex h-8 w-[calc(100%-45px)] items-center gap-2 rounded-(--radius-lg) border border-dashed border-neutral-700 px-3 text-left text-[12.5px] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+                    onClick={addAtEnd}
+                  >
+                    <Plus size={14} aria-hidden /><b className="font-medium text-neutral-300">Add paragraph</b> · or paste text to split into paragraphs
+                  </button>
+                ) : (
                   <div className="card mt-6 p-10 text-center text-neutral-400">
                     This chapter is empty.
                     <div className="mt-3 flex justify-center gap-2">
-                      <button className="btn btn-primary" onClick={() => setDialog("paste")}>Paste text</button>
-                      <button className="btn" onClick={() => actions.insert("start", { text: "" })}>Type a paragraph</button>
+                      <button className="btn btn-primary" onClick={() => setDialog("paste")}><Clipboard size={16} aria-hidden /> Paste text</button>
+                      <button className="btn" onClick={() => actions.insert("start", { text: "" })}><Plus size={16} aria-hidden /> Type a paragraph</button>
                     </div>
                   </div>
                 )}
               </div>
-              {paragraphs.length > 0 && (
-                // Click the free space below the text to add a paragraph at the end.
-                <div className="mx-auto min-h-32 w-full max-w-[760px] flex-1 cursor-text" onClick={addAtEnd}>
-                  <p className="pt-6 text-center text-xs text-neutral-500">
-                    Enter: new paragraph (splits in the middle, adds above at the start) · Shift+Enter: new line · Backspace at the start: merge with the one above / delete an empty paragraph · Delete at the end: merge the next one · ↑/↓ move between paragraphs · paste several lines to add several paragraphs · Ctrl/Cmd+Enter regenerates · Click here to add a paragraph
-                  </p>
-                </div>
-              )}
             </div>
             <Player
               ref={player}
@@ -357,6 +420,7 @@ export function Studio({ projectId }: { projectId: string }) {
               timeline={timeline?.timeline ?? []}
               paragraphs={paragraphs}
               onCurrent={setCurrent}
+              onPosition={onPosition}
             />
           </>
         ) : (
@@ -364,13 +428,12 @@ export function Studio({ projectId }: { projectId: string }) {
             <ErrorText error={error} />
             <p className="mb-3">Add a chapter to start.</p>
             <div className="flex justify-center gap-2">
-              <button className="btn btn-primary" onClick={addChapter}>+ Add chapter</button>
-              <button className="btn" onClick={() => setDialog("import")}>Import files</button>
+              <button className="btn btn-primary" onClick={addChapter}><Plus size={16} aria-hidden /> Add chapter</button>
+              <button className="btn" onClick={() => setDialog("import")}><Upload size={16} aria-hidden /> Import files</button>
             </div>
           </div>
         )}
       </section>
-
       {dialog === "paste" && chapter && (
         <PasteDialog chapter={chapter} hasParagraphs={paragraphs.length > 0} onClose={() => setDialog(null)} onDone={(ps) => { setParagraphs(ps); setDialog(null); loadProject(); }} />
       )}

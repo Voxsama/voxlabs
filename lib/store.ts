@@ -35,17 +35,42 @@ function clearChapterCache(chapterIds: string[]) {
 // ---------------------------------------------------------------- projects
 
 export function listProjects(): ProjectSummary[] {
-  const rows = db
+  const projects = db
     .prepare(
       `SELECT p.*,
-        (SELECT COUNT(*) FROM chapters c WHERE c.project_id = p.id) AS chapter_count,
-        (SELECT COUNT(*) FROM paragraphs x JOIN chapters c ON c.id = x.chapter_id WHERE c.project_id = p.id AND x.is_pause = 0 AND TRIM(x.text) <> '') AS paragraph_count,
-        (SELECT COUNT(*) FROM paragraphs x JOIN chapters c ON c.id = x.chapter_id WHERE c.project_id = p.id AND x.is_pause = 0 AND TRIM(x.text) <> '' AND x.active_version_id IS NOT NULL) AS ready_count,
         (SELECT x.text FROM paragraphs x JOIN chapters c ON c.id = x.chapter_id WHERE c.project_id = p.id AND x.is_pause = 0 ORDER BY c.position, x.position LIMIT 1) AS preview
        FROM projects p ORDER BY p.updated_at DESC`,
     )
-    .all() as ProjectSummary[];
-  return rows;
+    .all() as (Project & { preview: string | null })[];
+  // One grouped pass over all chapters; per-project totals are summed in JS.
+  const chapters = db
+    .prepare(
+      `SELECT c.project_id, c.name,
+        COALESCE(SUM(x.is_pause = 0 AND TRIM(x.text) <> ''), 0) AS paragraph_count,
+        COALESCE(SUM(x.is_pause = 0 AND TRIM(x.text) <> '' AND x.active_version_id IS NOT NULL), 0) AS ready_count,
+        COALESCE(SUM(v.duration_ms), 0) AS duration_ms,
+        COALESCE(SUM(x.status IN ('queued', 'generating')), 0) AS generating_count,
+        COALESCE(SUM(x.status = 'error'), 0) AS error_count
+       FROM chapters c
+       LEFT JOIN paragraphs x ON x.chapter_id = c.id
+       LEFT JOIN audio_versions v ON v.id = x.active_version_id
+       GROUP BY c.id ORDER BY c.position`,
+    )
+    .all() as { project_id: string; name: string; paragraph_count: number; ready_count: number; duration_ms: number; generating_count: number; error_count: number }[];
+  return projects.map((p) => {
+    const own = chapters.filter((c) => c.project_id === p.id);
+    const sum = (k: "paragraph_count" | "ready_count" | "duration_ms" | "generating_count" | "error_count") => own.reduce((n, c) => n + c[k], 0);
+    return {
+      ...p,
+      chapter_count: own.length,
+      paragraph_count: sum("paragraph_count"),
+      ready_count: sum("ready_count"),
+      duration_ms: sum("duration_ms"),
+      generating_count: sum("generating_count"),
+      error_count: sum("error_count"),
+      chapters: own.map(({ name, paragraph_count, ready_count }) => ({ name, paragraph_count, ready_count })),
+    };
+  });
 }
 
 export function getProject(id: string): Project {
@@ -271,7 +296,8 @@ export function deleteTemplate(id: string) {
 
 const CHAPTER_SELECT = `SELECT c.*,
   (SELECT COUNT(*) FROM paragraphs x WHERE x.chapter_id = c.id AND x.is_pause = 0 AND TRIM(x.text) <> '') AS paragraph_count,
-  (SELECT COUNT(*) FROM paragraphs x WHERE x.chapter_id = c.id AND x.is_pause = 0 AND TRIM(x.text) <> '' AND x.active_version_id IS NOT NULL) AS ready_count
+  (SELECT COUNT(*) FROM paragraphs x WHERE x.chapter_id = c.id AND x.is_pause = 0 AND TRIM(x.text) <> '' AND x.active_version_id IS NOT NULL) AS ready_count,
+  (SELECT COALESCE(SUM(v.duration_ms), 0) FROM paragraphs x JOIN audio_versions v ON v.id = x.active_version_id WHERE x.chapter_id = c.id) AS duration_ms
   FROM chapters c`;
 
 export function listChapters(projectId: string): Chapter[] {
