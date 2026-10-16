@@ -102,8 +102,12 @@ The tag starts `.github/workflows/release.yml`. It builds the Docker image `ghcr
    - Enter at the end of a line adds a new line below. Enter at the start adds one above. Enter in the middle splits the line.
    - Backspace on an empty line deletes it. Backspace at the start of a line merges it with the one above. Delete at the end merges the next line in.
    - Arrow up and down move between lines. Pasting several lines into a row creates one row per line.
-   - Hover a row for "+ Text above", "+ Pause above", "+ Text" and "+ Pause". Click the empty space under the last line to add a line.
+   - Hover a row (or Tab into it) for its toolbar: Play, Regenerate, History, "+ Text above", "+ Pause above", "+ Text" and "+ Pause". Click the empty space under the last line to add a line.
 5. **Export** when every paragraph is generated.
+
+### Themes
+
+The theme switch is at the bottom of the sidebar and on the login page. Pick System (follows your OS), Studio (dark) or Paper (light). The choice is remembered per browser.
 
 ## Where data is stored
 

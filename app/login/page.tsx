@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { ErrorText, Field } from "@/components/ui";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const [setup, setSetup] = useState<boolean | null>(null);
@@ -50,7 +51,7 @@ export default function LoginPage() {
   if (setup === null) return null;
 
   return (
-    <div className="flex h-full items-center justify-center p-6">
+    <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-6">
         <div>
           <h1><Logo className="h-10 w-auto" /></h1>
@@ -74,6 +75,7 @@ export default function LoginPage() {
           {busy ? "..." : setup ? "Create admin account" : "Log in"}
         </button>
       </form>
+      <div className="w-40"><ThemeToggle /></div>
     </div>
   );
 }

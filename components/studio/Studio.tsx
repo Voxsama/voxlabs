@@ -269,8 +269,8 @@ export function Studio({ projectId }: { projectId: string }) {
                 <span className="min-w-0 flex-1 truncate">{c.name}</span>
                 <span className="text-[10px] text-neutral-500">{c.ready_count}/{c.paragraph_count}</span>
                 {complete && <span className="text-green-400">✓</span>}
-                <button className="hidden text-xs text-neutral-500 hover:text-white group-hover:inline" onClick={(e) => { e.stopPropagation(); renameChapter(c); }}>✎</button>
-                <button className="hidden text-xs text-neutral-500 hover:text-red-400 group-hover:inline" onClick={(e) => { e.stopPropagation(); deleteChapter(c); }}>🗑</button>
+                <button className="hidden text-xs text-neutral-500 hover:text-neutral-100 group-hover:inline" aria-label={`Rename ${c.name}`} onClick={(e) => { e.stopPropagation(); renameChapter(c); }}>✎</button>
+                <button className="hidden text-xs text-neutral-500 hover:text-red-400 group-hover:inline" aria-label={`Delete ${c.name}`} onClick={(e) => { e.stopPropagation(); deleteChapter(c); }}>🗑</button>
               </div>
             );
           })}
@@ -314,8 +314,9 @@ export function Studio({ projectId }: { projectId: string }) {
                 <ErrorText error={error + "  (click to dismiss)"} />
               </div>
             )}
-            <div className="flex min-h-0 flex-1 flex-col overflow-auto px-4 py-3" lang={project.language}>
-              <div className="mx-auto w-full max-w-4xl space-y-0.5">
+            {/* pt-5 leaves room for the first row's floating toolbar. */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto px-14 pt-5 pb-3" lang={project.language}>
+              <div className="mx-auto w-full max-w-[760px] space-y-0.5">
                 {paragraphs.map((p, i) => (
                   <ParagraphRow
                     key={p.id}
@@ -340,8 +341,8 @@ export function Studio({ projectId }: { projectId: string }) {
               </div>
               {paragraphs.length > 0 && (
                 // Click the free space below the text to add a paragraph at the end.
-                <div className="mx-auto min-h-32 w-full max-w-4xl flex-1 cursor-text" onClick={addAtEnd}>
-                  <p className="pt-6 text-center text-xs text-neutral-600">
+                <div className="mx-auto min-h-32 w-full max-w-[760px] flex-1 cursor-text" onClick={addAtEnd}>
+                  <p className="pt-6 text-center text-xs text-neutral-500">
                     Enter: new paragraph (splits in the middle, adds above at the start) · Shift+Enter: new line · Backspace at the start: merge with the one above / delete an empty paragraph · Delete at the end: merge the next one · ↑/↓ move between paragraphs · paste several lines to add several paragraphs · Ctrl/Cmd+Enter regenerates · Click here to add a paragraph
                   </p>
                 </div>

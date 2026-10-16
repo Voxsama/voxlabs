@@ -83,7 +83,7 @@ function ParagraphSettingsModal({ p, chapter, project, onPatch, onClose }: {
   };
 
   return (
-    <Modal title={`Paragraph #${p.position} settings`} onClose={onClose}>
+    <Modal title={`Paragraph #${p.position + 1} settings`} onClose={onClose}>
       <div className="space-y-4 text-sm">
         <p className="text-xs text-neutral-500">Overrides for this paragraph only. Anything left on default follows the chapter/project.</p>
         <div>

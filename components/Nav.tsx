@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CreditsBadge } from "./CreditsBadge";
 import { Logo } from "./Logo";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface Me {
   user: { username: string; is_admin: number } | null;
@@ -39,10 +40,11 @@ export function Nav() {
       {me?.user?.is_admin ? link("/settings", "Settings") : null}
       {!me?.authDisabled && link("/account", me?.user?.is_admin ? "Account & users" : "My account")}
       <div className="mt-auto space-y-1 px-2 text-xs text-neutral-500">
+        <ThemeToggle />
         {me?.user && !me.authDisabled && (
           <div className="flex items-center justify-between gap-2">
             <span className="truncate" title={me.user.username}>👤 {me.user.username}</span>
-            <button className="hover:text-white" onClick={logout}>Log out</button>
+            <button className="hover:text-neutral-100" onClick={logout}>Log out</button>
           </div>
         )}
         {version && <div>Voxlabs v{version}</div>}

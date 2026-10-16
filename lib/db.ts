@@ -94,11 +94,17 @@ CREATE TABLE IF NOT EXISTS templates (
 );
 `;
 
-/** Small additive migrations for databases created by older versions. */
-function migrate(db: Database.Database) {
+/** Small additive migrations for databases created by older versions. Safe to run twice. */
+export function migrate(db: Database.Database) {
+  /** Returns true when the column was added. Build workers open a fresh DB at the same time, so another may win the race. */
   const addCol = (table: string, col: string, def: string) => {
-    const have = (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === col);
-    if (!have) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+      return true;
+    } catch (e) {
+      if ((e as Error).message.includes("duplicate column name")) return false;
+      throw e;
+    }
   };
   // Generation settings (existing projects keep 44.1 kHz / 16-bit; new projects get 48 kHz / float, see createProject).
   addCol("projects", "emotion", "TEXT");
@@ -107,9 +113,7 @@ function migrate(db: Database.Database) {
   addCol("projects", "bit_depth", "TEXT NOT NULL DEFAULT '16'");
   addCol("projects", "paragraph_gap_ms", "INTEGER NOT NULL DEFAULT 450");
   addCol("paragraphs", "volume", "REAL");
-  const cols = (db.prepare("PRAGMA table_info(paragraphs)").all() as { name: string }[]).map((c) => c.name);
-  if (!cols.includes("is_pause")) {
-    db.exec("ALTER TABLE paragraphs ADD COLUMN is_pause INTEGER NOT NULL DEFAULT 0");
+  if (addCol("paragraphs", "is_pause", "INTEGER NOT NULL DEFAULT 0")) {
     const rows = db.prepare("SELECT id, text FROM paragraphs").all() as { id: string; text: string }[];
     const set = db.prepare("UPDATE paragraphs SET is_pause = 1 WHERE id = ?");
     db.transaction(() => rows.forEach((r) => isPauseOnly(r.text) && set.run(r.id)))();
@@ -118,17 +122,18 @@ function migrate(db: Database.Database) {
 
 /** Insert the built-in FIA template once; a deleted FIA stays deleted. */
 export function seedTemplates(db: Database.Database) {
-  const { n } = db.prepare("SELECT COUNT(*) AS n FROM templates").get() as { n: number };
-  if (n || db.prepare("SELECT 1 FROM settings WHERE key = 'templates_seeded'").get()) return;
   // Raw values: runs inside open(), before `now`/`newId` below are initialised.
   const t = new Date().toISOString();
   const f = FIA_TEMPLATE;
+  // IMMEDIATE: parallel build workers opening a fresh DB must not both seed.
   db.transaction(() => {
+    const { n } = db.prepare("SELECT COUNT(*) AS n FROM templates").get() as { n: number };
+    if (n || db.prepare("SELECT 1 FROM settings WHERE key = 'templates_seeded'").get()) return;
     db.prepare(
       "INSERT INTO templates (id, category, name, chapters_json, end_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     ).run(crypto.randomUUID(), f.category ?? "", f.name, JSON.stringify(f.chapters), f.end_text ?? "", t, t);
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('templates_seeded', '1')").run();
-  })();
+  }).immediate();
 }
 
 function open(): Database.Database {

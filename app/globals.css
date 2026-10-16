@@ -1,14 +1,96 @@
 @import "tailwindcss";
 
-:root { color-scheme: dark; }
-body { @apply bg-neutral-950 text-neutral-100 antialiased; font-family: "Noto Sans Devanagari", "Noto Sans", "Nirmala UI", "Mangal", "Lohit Devanagari", system-ui, sans-serif; }
+/* Theme tokens. Also usable as utilities: text-on-accent, outline-ring. */
+@theme {
+  --color-on-accent: #ffffff;
+  --color-ring: #ffffff;
+}
+
+/* Themes remap Tailwind's colour variables, so existing classes flip. The bootstrap script in layout.tsx sets data-theme. */
+:root, html[data-theme="studio"] {
+  color-scheme: dark;
+  --color-neutral-950: #000000;
+  --color-neutral-900: #0c0c0c;
+  --color-neutral-800: #181818;
+  --color-neutral-700: #3f3f46;
+  --color-neutral-600: #52525b;
+  --color-neutral-500: #94a3b8;
+  --color-neutral-400: #a1a1aa;
+  --color-neutral-300: #d4d4d8;
+  --color-neutral-200: #e4e4e7;
+  --color-neutral-100: #fafafa;
+  --color-purple-500: #7c3aed; /* brand violet: 5.7:1 with white text */
+  --color-on-accent: #ffffff;
+  --color-ring: #ffffff;
+  --logo-accent: #a78bfa;
+  --font-heading: var(--font-archivo);
+  --font-body: var(--font-space-grotesk);
+  --font-devanagari: var(--font-noto-devanagari);
+}
+
+html[data-theme="paper"] {
+  color-scheme: light;
+  --color-neutral-950: #f8fafc;
+  --color-neutral-900: #ffffff;
+  --color-neutral-800: #f1f3f5;
+  --color-neutral-700: #e4e7eb;
+  --color-neutral-600: #cbd5e1;
+  --color-neutral-500: #475569;
+  --color-neutral-400: #334155;
+  --color-neutral-300: #1e293b;
+  --color-neutral-200: #0f172a;
+  --color-neutral-100: #0f172a;
+  --color-purple-950: #eef2f8;
+  --color-purple-900: #dce4f0;
+  --color-purple-500: #1e3a5f;
+  --color-purple-400: #2563eb;
+  --color-purple-300: #1e3a5f;
+  --color-purple-200: #1e3a5f;
+  --color-purple-100: #0f172a;
+  --color-amber-950: #fffbeb;
+  --color-amber-900: #fde68a;
+  --color-amber-500: #d97706;
+  --color-amber-400: #b45309;
+  --color-amber-200: #92400e;
+  --color-red-950: #fef2f2;
+  --color-red-900: #fecaca;
+  --color-red-800: #fca5a5;
+  --color-red-500: #dc2626;
+  --color-red-400: #b91c1c;
+  --color-red-300: #b91c1c;
+  --color-red-200: #991b1b;
+  --color-green-900: #a7f3d0;
+  --color-green-500: #059669;
+  --color-green-400: #047857;
+  --color-sky-400: #2563eb;
+  --color-on-accent: #ffffff;
+  --color-ring: #1e3a5f;
+  --logo-accent: #7c3aed;
+  --font-heading: var(--font-outfit);
+  --font-body: var(--font-work-sans);
+  --font-devanagari: var(--font-noto-devanagari);
+}
+
+/* Unlayered so it beats outline-none utilities: focus must always be visible. */
+.btn:focus-visible, .input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+@layer base {
+  body { @apply bg-neutral-950 text-neutral-100 antialiased; font-family: var(--font-body), var(--font-devanagari), "Noto Sans Devanagari", system-ui, sans-serif; }
+  h1, h2, h3 { font-family: var(--font-heading), var(--font-devanagari), sans-serif; }
+}
+
 @layer components {
   .btn { @apply inline-flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed; }
-  .btn-primary { @apply border-white bg-white text-black hover:bg-neutral-200; }
+  .btn-primary { @apply border-neutral-100 bg-neutral-100 text-neutral-950 hover:bg-neutral-300; }
   .btn-danger { @apply border-red-800 bg-red-950 text-red-200 hover:bg-red-900; }
   .btn-ghost { @apply border-transparent bg-transparent hover:bg-neutral-800; }
   .btn-sm { @apply px-2 py-1 text-xs; }
-  .input { @apply w-full rounded-md border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-sm outline-none focus:border-neutral-400; }
+  .input { @apply w-full rounded-md border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-sm focus:border-neutral-400; }
   .label { @apply mb-1 block text-xs font-medium text-neutral-400; }
   .card { @apply rounded-lg border border-neutral-800 bg-neutral-900; }
+  .script { font-family: var(--font-devanagari), var(--font-body), sans-serif; font-size: 17px; line-height: 1.8; }
+  :where(html[data-theme="paper"]) .card { box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .04); }
 }

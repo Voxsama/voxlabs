@@ -228,7 +228,7 @@ function Waveform({ peaks, duration, start, end }: { peaks: number[]; duration: 
       {peaks.map((p, i) => {
         const t = (i / peaks.length) * duration;
         const inSel = t >= start && t <= end;
-        return <div key={i} className={inSel ? "bg-purple-400" : "bg-neutral-700"} style={{ width: `${100 / peaks.length}%`, height: `${Math.max(2, p * 100)}%` }} />;
+        return <div key={i} className={inSel ? "bg-purple-400" : "bg-neutral-600"} style={{ width: `${100 / peaks.length}%`, height: `${Math.max(2, p * 100)}%` }} />;
       })}
     </div>
   );

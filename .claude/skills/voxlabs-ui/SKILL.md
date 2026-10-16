@@ -5,13 +5,14 @@ description: Voxlabs house UI rules. Use for any visible UI change in app/** or 
 
 # Voxlabs UI rules
 
-Voxlabs is a dense, dark, keyboard-first audiobook editor. Keep changes small and consistent with what exists.
+Voxlabs is a dense, keyboard-first audiobook editor. Keep changes small and consistent with what exists.
 
 ## Design system
 
-- Dark only (`color-scheme: dark`). Surfaces: `bg-neutral-950` page, `neutral-900` cards and inputs, `neutral-800` borders, hover and selected states. Body text `neutral-100`, secondary `neutral-400`/`neutral-500`.
-- Accent is purple: `#7c3aed` as the reference hex, Tailwind `purple-500` for bars, sliders (`accent-purple-500`) and done states, `purple-900`/`purple-950/40` for chips and the current row. Use `text-purple-300` for emphasis (overridden values, "In use"). The logo uses `#a78bfa`.
+- Two themes, Studio (dark, default) and Paper (light): `app/globals.css` remaps Tailwind's colour variables per `html[data-theme]`, so write classes in dark-theme terms and both flip. Surfaces: `bg-neutral-950` page, `neutral-900` cards and inputs, `neutral-800` borders, hover and selected states. Body text `neutral-100`, secondary `neutral-400`/`neutral-500`.
+- Accent is purple: `#7c3aed` as the reference hex, Tailwind `purple-500` for bars, sliders (`accent-purple-500`) and done states, `purple-900`/`purple-950/40` for chips and the current row. Use `text-purple-300` for emphasis (overridden values, "In use"). The logo uses `var(--logo-accent)`.
 - Primary buttons are white (`btn-primary`), not purple. Do not add new accent colours.
+- Never hard-code white/black/hex in components; use the neutral/purple/amber/red/green/sky scale so both themes work (`text-on-accent` on purple fills). Check both themes (`#theme=studio` and `#theme=paper`).
 - Reuse the classes in `app/globals.css`; never re-create them inline: `btn`, `btn-primary`, `btn-ghost`, `btn-sm`, `btn-danger`, `input`, `label`, `card`.
 - Reuse components instead of writing new ones:
   - `Modal` (title, onClose, `wide`; Escape and backdrop click close it), `Field` (label + control), `ErrorText` from `components/ui.tsx`.
@@ -33,7 +34,7 @@ Rows are dense and keyboard-driven. Never break these keys (skipped during IME c
 
 Other rules:
 
-- Row actions (Play, Regenerate, History, + Text/Pause above/below, Delete) are hover-only via `opacity-0 group-hover:opacity-100`. Keep `group-focus-within:opacity-100` on any hover-only control so keyboard users can reach it.
+- Row actions (Play, Regenerate, History, + Text/Pause above/below, Delete) live in a floating toolbar at the row's top-right (`absolute -top-4 right-2`, card background, border, shadow), so rows never change height on hover. It shows with `group-hover:opacity-100 group-focus-within:opacity-100` and is `pointer-events-none` while hidden. Keep `group-focus-within` on any hover-only control so keyboard users can reach it.
 - Status colours (left border and status text): purple done (`border-purple-500`), amber stale (`border-amber-400`, "Changed since generated") and queued (`border-amber-500`), sky generating (`border-sky-400 animate-pulse`), red error (`border-red-500`, `text-red-400`). Do not reuse these colours for other meanings.
 - Hindi/Devanagari text wraps and never truncates in the editor or history: no `truncate`, `line-clamp` or fixed heights on paragraph text. The textarea auto-grows.
 - Keep the Devanagari font stack on `body` in `app/globals.css` and the `lang={project.language}` attributes in `ParagraphRow.tsx` and `Studio.tsx`.

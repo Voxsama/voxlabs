@@ -126,7 +126,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
         }}
       />
       <div className="flex items-center gap-3">
-        <button className="btn btn-sm" disabled={!src} onClick={() => step(-1)} title="Previous paragraph">⏮</button>
+        <button className="btn btn-sm" disabled={!src} onClick={() => step(-1)} title="Previous paragraph" aria-label="Previous paragraph">⏮</button>
         <button
           className="btn btn-primary w-20 justify-center"
           disabled={!src}
@@ -134,7 +134,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
         >
           {playing ? "❚❚ Pause" : "▶ Play"}
         </button>
-        <button className="btn btn-sm" disabled={!src} onClick={() => step(1)} title="Next paragraph">⏭</button>
+        <button className="btn btn-sm" disabled={!src} onClick={() => step(1)} title="Next paragraph" aria-label="Next paragraph">⏭</button>
         <span className="w-28 text-xs tabular-nums text-neutral-400">
           {formatMs(t)} / {formatMs(durationMs)}
         </span>
@@ -162,10 +162,11 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
               <button
                 key={i.paragraphId}
                 title={i.pause ? `Pause ${formatMs(i.durationMs)}` : textOf(i.paragraphId)}
+                aria-label={i.pause ? `Pause ${formatMs(i.durationMs)}` : undefined}
                 onClick={() => seekMs(i.startMs + 1, playing)}
                 style={{ width: `${(100 * i.durationMs) / durationMs}%` }}
                 className={`h-full min-w-px truncate border-r border-neutral-950 px-1 text-left text-[10px] leading-7 ${
-                  i.pause ? "bg-neutral-800 text-neutral-500" : active ? "bg-purple-500 text-white" : "bg-purple-900/70 text-purple-100"
+                  i.pause ? "bg-neutral-800 text-neutral-500" : active ? "bg-purple-500 text-on-accent" : "bg-purple-900/70 text-purple-100"
                 }`}
               >
                 {i.pause ? "⏸" : textOf(i.paragraphId)}

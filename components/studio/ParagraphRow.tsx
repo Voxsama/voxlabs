@@ -277,18 +277,19 @@ function ParagraphRowInner({ p, index, chapter, project, current, focusRequest, 
   return (
     <div
       ref={rowRef}
-      className={`group flex gap-3 rounded-md px-2 py-1.5 ${current ? "bg-purple-950/40" : "hover:bg-neutral-900"}`}
+      className={`group relative rounded-md px-2 py-3 ${current ? "bg-purple-950/40" : "hover:bg-neutral-900"}`}
     >
-      <div className="w-8 shrink-0 pt-1.5 text-right text-xs tabular-nums text-neutral-500">{index + 1}</div>
-      <div className={`min-w-0 flex-1 border-l-2 pl-3 ${color}`}>
+      {/* The number hangs in the gutter left of the text column (Studio pads for it). */}
+      <div className="absolute -left-12 top-5 w-9 text-right text-xs tabular-nums text-neutral-500">{index + 1}</div>
+      <div className={`min-w-0 border-l-2 pl-3 ${color}`}>
         {pause ? (
           <div className="flex flex-wrap items-center gap-1.5 py-1">
             {breakDurations(p.text).map((ms, i) => (
               <span key={i} className="rounded-full bg-purple-900/70 px-2 py-0.5 text-xs text-purple-100">⏸ {ms % 1000 ? `${ms}ms` : `${ms / 1000}s`}</span>
             ))}
             <span className="ml-2 text-xs text-neutral-400">Pause {formatMs(pauseDurationMs(p.text))}</span>
-            <button className="btn btn-sm btn-ghost" title="Shorter" onClick={() => setPauseMs(Math.max(1000, pauseDurationMs(p.text) - 1000))}>−1s</button>
-            <button className="btn btn-sm btn-ghost" title="Longer" onClick={() => setPauseMs(pauseDurationMs(p.text) + 1000)}>+1s</button>
+            <button className="btn btn-sm btn-ghost" title="Shorter" aria-label="Shorten pause by 1 second" onClick={() => setPauseMs(Math.max(1000, pauseDurationMs(p.text) - 1000))}>−1s</button>
+            <button className="btn btn-sm btn-ghost" title="Longer" aria-label="Lengthen pause by 1 second" onClick={() => setPauseMs(pauseDurationMs(p.text) + 1000)}>+1s</button>
             <button
               className="btn btn-sm btn-ghost"
               onClick={() => {
@@ -322,11 +323,11 @@ function ParagraphRowInner({ p, index, chapter, project, current, focusRequest, 
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder="Type or paste text..."
-            className="block w-full resize-none overflow-hidden bg-transparent text-[15px] leading-relaxed outline-none"
+            className="block w-full resize-none overflow-hidden script bg-transparent outline-none"
           />
         )}
-        <div className="mt-0.5 flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
-          {!pause && (
+        {!pause && (
+          <div className="mt-0.5 flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
             <span>
               {p.status === "queued" && "Queued"}
               {p.status === "generating" && "Generating..."}
@@ -336,28 +337,27 @@ function ParagraphRowInner({ p, index, chapter, project, current, focusRequest, 
               {p.status === "idle" && !p.active_version_id && "Not generated"}
               {dirty && " · saving..."}
             </span>
-          )}
-          {!pause && (
-            // The chip's dialog renders inline: keep its clicks/keys away from the row.
+            {/* The chip's dialog renders inline: keep its clicks/keys away from the row. */}
             <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
               <ParagraphSettingsChip p={p} chapter={chapter} project={project} onPatch={patch} />
             </span>
-          )}
-          <span className="ml-auto flex flex-wrap gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
-            {!pause && p.active_version_id && <button className="btn btn-sm btn-ghost" onClick={() => actions.playFrom(p.id)}>▶ Play</button>}
-            {!pause && (
-              <button className="btn btn-sm btn-ghost" disabled={p.status === "queued" || p.status === "generating"} onClick={regenerate} title="Ctrl+Enter">
-                ⟳ {p.active_version_id ? "Regenerate" : "Generate"}
-              </button>
-            )}
-            {p.version_count > 0 && <button className="btn btn-sm btn-ghost" onClick={() => setShowHistory(true)}>History ({p.version_count})</button>}
-            <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { text: "", above: true })}>+ Text above</button>
-            <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { pauseMs: 1000, above: true })}>+ Pause above</button>
-            <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { text: "" })}>+ Text</button>
-            <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { pauseMs: 1000 })}>+ Pause</button>
-            <button className="btn btn-sm btn-ghost text-red-300" onClick={del}>Delete</button>
-          </span>
-        </div>
+          </div>
+        )}
+      </div>
+      {/* Floating toolbar: takes no space, so rows keep their height on hover. Tabbing into the row shows it. */}
+      <div className="pointer-events-none absolute -top-4 right-2 z-10 flex gap-0.5 whitespace-nowrap rounded-md border border-neutral-700 bg-neutral-900 p-0.5 opacity-0 shadow-md transition group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
+        {!pause && p.active_version_id && <button className="btn btn-sm btn-ghost" onClick={() => actions.playFrom(p.id)}>▶ Play</button>}
+        {!pause && (
+          <button className="btn btn-sm btn-ghost" disabled={p.status === "queued" || p.status === "generating"} onClick={regenerate} title="Ctrl+Enter">
+            ⟳ {p.active_version_id ? "Regenerate" : "Generate"}
+          </button>
+        )}
+        {p.version_count > 0 && <button className="btn btn-sm btn-ghost" onClick={() => setShowHistory(true)}>History ({p.version_count})</button>}
+        <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { text: "", above: true })}>+ Text above</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { pauseMs: 1000, above: true })}>+ Pause above</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { text: "" })}>+ Text</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => actions.insert(p.id, { pauseMs: 1000 })}>+ Pause</button>
+        <button className="btn btn-sm btn-ghost text-red-300" onClick={del}>Delete</button>
       </div>
       {showHistory && <HistoryDialog p={p} onClose={() => setShowHistory(false)} onActivated={actions.updated} />}
     </div>
@@ -389,7 +389,7 @@ function HistoryDialog({ p, onClose, onActivated }: { p: Paragraph; onClose: () 
           const active = v.id === p.active_version_id;
           return (
             <div key={v.id} className={`flex items-start gap-3 p-3 text-sm ${active ? "bg-purple-950/40" : ""}`}>
-              <button className="btn btn-sm" onClick={() => play(v.id)}>▶</button>
+              <button className="btn btn-sm" aria-label={`Play version ${v.version_no}`} onClick={() => play(v.id)}>▶</button>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-neutral-400">
                   v{v.version_no} · {new Date(v.created_at).toLocaleString()} · {formatMs(v.duration_ms)} · {s.voice_name || v.voice_id} · {v.model_id}

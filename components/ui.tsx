@@ -12,7 +12,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
       <div className={`card w-full ${wide ? "max-w-4xl" : "max-w-lg"} p-5`} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-sm" aria-label="Close" onClick={onClose}>✕</button>
         </div>
         {children}
       </div>

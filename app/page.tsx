@@ -55,7 +55,7 @@ export default function ProjectsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1 truncate font-medium">{p.name}</div>
-                <button className="text-xs text-neutral-500 hover:text-white" title="Rename project" onClick={(e) => rename(e, p)}>✎</button>
+                <button className="text-xs text-neutral-500 hover:text-neutral-100" title="Rename project" onClick={(e) => rename(e, p)}>✎</button>
               </div>
               <div className="mt-1 text-xs text-neutral-500">
                 {p.chapter_count} chapters · {p.ready_count}/{p.paragraph_count} paragraphs generated · {p.language}
