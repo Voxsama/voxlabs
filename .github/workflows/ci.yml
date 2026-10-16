@@ -19,8 +19,12 @@ jobs:
       - run: npm run build
       - name: End-to-end test against a mock Cartesia API
         shell: bash
+        timeout-minutes: 10
         run: |
           node scripts/mock-cartesia.mjs 4010 &
-          CARTESIA_BASE_URL=http://localhost:4010 CARTESIA_API_KEY=sk_car_mock DATA_DIR="$RUNNER_TEMP/studio-data" npx next start -p 3001 &
-          for i in $(seq 1 60); do curl -sf http://localhost:3001/api/settings >/dev/null && break; sleep 1; done
+          MOCK=$!
+          CARTESIA_BASE_URL=http://localhost:4010 CARTESIA_API_KEY=sk_car_mock DATA_DIR="$RUNNER_TEMP/studio-data" node node_modules/next/dist/bin/next start -p 3001 &
+          NEXT=$!
+          trap 'kill $MOCK $NEXT 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do curl -sf http://localhost:3001/api/version >/dev/null && break; sleep 1; done
           node scripts/e2e.mjs http://localhost:3001

@@ -15,6 +15,8 @@ At home install:
 - Git — https://git-scm.com (or GitHub Desktop, which includes it)
 - GitHub CLI `gh` — https://cli.github.com (optional, used below; GitHub Desktop works instead)
 
+No compiler or Python is needed: SQLite and ffmpeg come prebuilt in the npm packages, and `.npmrc` disables npm install scripts on purpose.
+
 Then, in the folder:
 ```sh
 npm install
@@ -120,7 +122,7 @@ GEN_CONCURRENCY=3
 
 ### C4. Docs
 `DEPLOY.md`, new section "Updating" (for IT):
-1. One-time: `docker login ghcr.io -u <github-username> -p <token>` using the read-only token you give them (Part E).
+1. One-time: `docker login ghcr.io -u <github-username> -p <token>` using the read-only token you give them (Part E). Then, in the compose folder, `mkdir -p voxlabs-data && sudo chown 1000:1000 voxlabs-data` (the container runs as uid 1000; a folder Docker creates itself is owned by root, so SQLite can't write and the container restart-loops).
 2. Per update: set `VOXLABS_VERSION` in `.env` to the new tag (or keep `latest`), then
    ```sh
    docker compose pull && docker compose up -d

@@ -15,6 +15,8 @@ This guide is for the team that installs and runs the server. The app is a singl
 
 During installation the server also needs internet access to download npm packages, including a prebuilt ffmpeg binary.
 
+No compiler or Python is needed: SQLite and ffmpeg come prebuilt in the npm packages, and the repo's `.npmrc` disables npm install scripts on purpose.
+
 **Important:**
 - **Run exactly one instance.** The generation queue lives in the process and the database is SQLite. Do not load-balance several copies.
 - **Keep the data folder on a local disk.** Do not put it on NFS or SMB shares, because SQLite can corrupt on network file systems.
@@ -45,9 +47,10 @@ You only need two files, `docker-compose.yml` and `deploy/.env.example`. You do 
    docker login ghcr.io -u <github-username> -p <token>
    ```
 
-3. Start the app:
+3. Start the app. The first time, create the data folder owned by uid 1000 first: the container runs as user `node` (uid 1000), and a folder Docker creates itself is owned by root, so the database can't be written and the container keeps restarting.
 
    ```sh
+   mkdir -p voxlabs-data && sudo chown 1000:1000 voxlabs-data
    docker compose pull && docker compose up -d
    ```
 

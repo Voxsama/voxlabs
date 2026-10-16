@@ -9,7 +9,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const ffmpeg = require("ffmpeg-static");
+const ffmpeg = require("@ffmpeg-installer/ffmpeg").path;
 const AdmZip = require("adm-zip");
 
 const BASE = process.argv[2] || "http://localhost:3001";

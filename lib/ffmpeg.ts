@@ -1,11 +1,21 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
-import ffmpegStatic from "ffmpeg-static";
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import type { WavFormat } from "./wav";
 
+let chmodDone = false;
+
 export function ffmpegPath(): string {
-  const p = process.env.FFMPEG_PATH || (ffmpegStatic as unknown as string | null);
-  if (!p) throw new Error("ffmpeg not found. Set FFMPEG_PATH or reinstall ffmpeg-static.");
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  const p = ffmpegInstaller.path;
+  if (!chmodDone && process.platform !== "win32") {
+    chmodDone = true;
+    // ponytail: .npmrc skips the package's `chmod u+x` postinstall. The npm tarballs already ship it executable;
+    // this only repairs odd installs and is ignored when the file isn't ours to chmod (it may still be executable).
+    try {
+      fs.chmodSync(p, 0o755);
+    } catch {}
+  }
   return p;
 }
 
