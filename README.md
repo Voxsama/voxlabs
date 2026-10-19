@@ -104,6 +104,7 @@ The tag starts `.github/workflows/release.yml`. It builds the Docker image `ghcr
    - Arrow up and down move between lines. Pasting several lines into a row creates one row per line.
    - Hover a row (or Tab into it) for its actions: Play, Regenerate, History, Text above, Pause above, Text below, Pause below and Delete. Click the empty space under the last line to add a line.
    - Space plays or pauses the chapter when you are not typing in a field.
+   - Click a line to move the playhead there (it keeps playing or stays paused).
 5. **Export** when every paragraph is generated.
 
 ### Themes

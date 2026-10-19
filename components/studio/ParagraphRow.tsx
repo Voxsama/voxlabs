@@ -23,6 +23,8 @@ export interface RowActions {
   /** Focus the nearest speech (non-pause) row before/after `id`. Returns false when there is none. */
   focusSpeech: (id: string, dir: -1 | 1, caret: Caret) => boolean;
   playFrom: (id: string) => void;
+  /** Move the player's playhead here, keeping play/pause. */
+  seekTo: (id: string) => void;
   setError: (msg: string) => void;
 }
 
@@ -337,6 +339,7 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
   return (
     <div
       ref={rowRef}
+      onPointerDown={(e) => !(e.target as HTMLElement).closest("button,a,select,input") && actions.seekTo(p.id)}
       className={`group @container relative grid grid-cols-[28px_3px_minmax(0,1fr)] gap-x-3.5 border-b border-neutral-800 pr-3 paper:rounded-xl paper:border paper:border-transparent ${pause ? "py-2.5" : "py-3"} ${
         current ? "bg-purple-950/40 paper:border-purple-900" : "hover:bg-neutral-900 focus-within:bg-neutral-900 paper:hover:border-neutral-700 paper:hover:shadow-sm paper:focus-within:border-neutral-700"
       } ${kind === "error" ? "paper:bg-red-950 paper:border-red-900" : ""}`}
@@ -405,7 +408,7 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
               )}
               {dirty && <span>Saving...</span>}
               {/* The chip's dialog renders inline: keep its clicks/keys away from the row. */}
-              <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                 <ParagraphSettingsChip p={p} chapter={chapter} project={project} onPatch={patch} />
               </span>
               {rowActions}

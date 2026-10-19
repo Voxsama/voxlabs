@@ -160,6 +160,7 @@ export function Studio({ projectId }: { projectId: string }) {
         return false;
       },
       playFrom: (id) => player.current?.playFrom(id),
+      seekTo: (id) => player.current?.seekTo(id),
       setError,
     }),
     [],

@@ -13,6 +13,8 @@ export interface TimelineItem {
 
 export interface PlayerHandle {
   playFrom: (paragraphId: string) => void;
+  /** Move the playhead to this paragraph, keeping play/pause. No-op if it's already current or has no audio. */
+  seekTo: (paragraphId: string) => void;
 }
 
 interface Props {
@@ -73,6 +75,12 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
     playFrom(paragraphId: string) {
       const item = timeline.find((i) => i.paragraphId === paragraphId);
       if (item) seekMs(item.startMs + 1, true);
+    },
+    seekTo(paragraphId: string) {
+      const item = timeline.find((i) => i.paragraphId === paragraphId);
+      const a = audio.current;
+      if (!item || !a || currentItem(a.currentTime * 1000)?.paragraphId === paragraphId) return;
+      seekMs(item.startMs + 1, !a.paused);
     },
   }));
 

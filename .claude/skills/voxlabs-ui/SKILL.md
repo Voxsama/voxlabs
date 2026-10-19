@@ -37,6 +37,7 @@ Rows are dense and keyboard-driven. Never break these keys (skipped during IME c
 - ArrowUp/ArrowDown on the first/last visual line: move to the previous/next text row.
 - Space (`components/studio/Player.tsx`): play/pause, only when focus is not in a field or on a control.
 - Multi-line paste: one row per line; pause lines stay their own rows.
+- Pointer-down on a row (not on its buttons/links/inputs) moves the playhead to it via `actions.seekTo`, keeping play/pause; no-op if it is already current or has no audio. Keyboard focus moves never seek.
 
 Other rules:
 
