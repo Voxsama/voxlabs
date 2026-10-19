@@ -1,5 +1,5 @@
 "use client";
-import { AlertTriangle, AudioLines, CheckCircle2, CircleDashed, History, Loader2, Pencil, Play, Plus, RefreshCw, Timer, Trash2, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, AudioLines, CheckCircle2, CircleDashed, History, Loader2, Pencil, Play, RefreshCw, Timer, Trash2, type LucideIcon } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -294,34 +294,42 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
   };
 
   // Labels show only on wide rows (Studio from ~1440px); narrower rows (Paper's 820px column) get icons, so the actions fit on the meta line.
+  // "Text above/below" keep labels longest; the rest are labelled only on very wide rows, so the bar fits one line at 1440px.
   const label = (text: string) => <span className="hidden @[56rem]:inline">{text}</span>;
+  const wideLabel = (text: string) => <span className="hidden @[80rem]:inline">{text}</span>;
   const act = "btn btn-sm btn-ghost px-1.5 text-neutral-300";
   // Shown inline at the end of the meta line on hover/focus; display:none otherwise, so it reserves no space.
   const rowActions = (
     <div className="ml-auto hidden shrink-0 items-center gap-0.5 group-focus-within:flex group-hover:flex">
       {!pause && p.active_version_id && (
         <button className={act} aria-label="Play" title="Play from here" onClick={() => actions.playFrom(p.id)}>
-          <Play size={14} aria-hidden />{label("Play")}
+          <Play size={14} aria-hidden />{wideLabel("Play")}
         </button>
       )}
       {!pause && (
         <button className={act} aria-label={p.active_version_id ? "Regenerate" : "Generate"} title="Ctrl/Cmd+Enter" disabled={p.status === "queued" || p.status === "generating"} onClick={regenerate}>
-          <RefreshCw size={14} aria-hidden />{label(p.active_version_id ? "Regenerate" : "Generate")}
+          <RefreshCw size={14} aria-hidden />{wideLabel(p.active_version_id ? "Regenerate" : "Generate")}
         </button>
       )}
       {p.version_count > 0 && (
         <button className={act} aria-label={`History (${p.version_count})`} title="Generation history" onClick={() => setShowHistory(true)}>
-          <History size={14} aria-hidden />{label("History")}<span className="text-neutral-500">({p.version_count})</span>
+          <History size={14} aria-hidden />{wideLabel("History")}<span className="text-neutral-500">({p.version_count})</span>
         </button>
       )}
       <button className={act} aria-label="Insert text above" title="Insert text above" onClick={() => actions.insert(p.id, { text: "", above: true })}>
-        <Plus size={14} aria-hidden />{label("Text above")}
+        <ArrowUpToLine size={14} aria-hidden />{label("Text above")}
       </button>
       <button className={act} aria-label="Insert pause above" title="Insert pause above" onClick={() => actions.insert(p.id, { pauseMs: 1000, above: true })}>
-        <Timer size={14} aria-hidden />{label("Pause")}
+        <span className="inline-flex items-center" aria-hidden><Timer size={14} /><ArrowUp size={10} /></span>{wideLabel("Pause above")}
+      </button>
+      <button className={act} aria-label="Insert text below" title="Insert text below" onClick={() => insert(false)}>
+        <ArrowDownToLine size={14} aria-hidden />{label("Text below")}
+      </button>
+      <button className={act} aria-label="Insert pause below" title="Insert pause below" onClick={() => actions.insert(p.id, { pauseMs: 1000 })}>
+        <span className="inline-flex items-center" aria-hidden><Timer size={14} /><ArrowDown size={10} /></span>{wideLabel("Pause below")}
       </button>
       <button className="btn btn-sm btn-ghost px-1.5 text-red-400" aria-label="Delete" title="Delete" onClick={del}>
-        <Trash2 size={14} aria-hidden />{label("Delete")}
+        <Trash2 size={14} aria-hidden />{wideLabel("Delete")}
       </button>
     </div>
   );

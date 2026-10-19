@@ -40,7 +40,7 @@ Rows are dense and keyboard-driven. Never break these keys (skipped during IME c
 
 Other rules:
 
-- Row actions (Play, Regenerate, History, Text above, Pause above, Delete) sit inline at the end of the row's meta line (`ml-auto hidden group-hover:flex group-focus-within:flex`), so they reserve no space and rows do not change height on hover. Labels show only on wide rows (`@[56rem]:inline`); narrower rows get icons with `aria-label`. Keep `group-focus-within` on any hover-only control so keyboard users can reach it.
+- Row actions (Play, Regenerate, History, Text above, Pause above, Text below, Pause below, Delete) sit inline at the end of the row's meta line (`ml-auto hidden group-hover:flex group-focus-within:flex`), so they reserve no space and rows do not change height on hover. Labels show only on wide rows (`@[56rem]:inline` for Text above/below; `@[80rem]:inline` for the rest); narrower rows get icons with `aria-label`. Keep `group-focus-within` on any hover-only control so keyboard users can reach it.
 - Status colours (left border and status text): purple done (`border-purple-500`), amber stale (`border-amber-400`, "Changed since generated") and queued (`border-amber-500`), sky generating (`border-sky-400 animate-pulse`), red error (`border-red-500`, `text-red-400`). Do not reuse these colours for other meanings.
 - Hindi/Devanagari text wraps and never truncates in the editor or history: no `truncate`, `line-clamp` or fixed heights on paragraph text. The textarea auto-grows.
 - Keep the Devanagari font stack on `body` in `app/globals.css` and the `lang={project.language}` attributes in `ParagraphRow.tsx` and `Studio.tsx`.
