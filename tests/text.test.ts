@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  breakDurations, isPauseOnly, looksBroken, naturalCompare, pauseDurationMs, sameLine, splitIntoParagraphs, splitLong, toTranscript,
+  breakDurations, applyPronunciations, isPauseOnly, looksBroken, naturalCompare, pauseDurationMs, sameLine, splitIntoParagraphs, splitLong, toTranscript,
 } from "@/lib/text";
 
 describe("sameLine", () => {
@@ -68,6 +68,29 @@ describe("splitIntoParagraphs", () => {
 
 it("natural sort", () => {
   expect(["s10", "s2", "s1"].sort(naturalCompare)).toEqual(["s1", "s2", "s10"]);
+});
+
+it("applies the pronunciation dictionary", () => {
+  expect(applyPronunciations("jambalaya and rice", [{ text: "jambalaya", pronunciation: "jam bal aya" }])).toBe("<<jam bal aya>> and rice");
+  expect(applyPronunciations("longword", [{ text: "longword", pronunciation: "x" }, { text: "word", pronunciation: "y" }])).toBe("<<x>>"); // longest first
+  expect(applyPronunciations("unchanged", [{ text: "missing", pronunciation: "z" }])).toBe("unchanged");
+  expect(applyPronunciations("ok", [])).toBe("ok");
+});
+
+it("matches pronunciations on word boundaries only", () => {
+  expect(applyPronunciations("many", [{ text: "an", pronunciation: "X" }])).toBe("many");
+  expect(applyPronunciations("many than Johns", [{ text: "an", pronunciation: "X" }, { text: "John", pronunciation: "Y" }])).toBe("many than Johns");
+  expect(applyPronunciations("an apple", [{ text: "an", pronunciation: "X" }])).toBe("<<X>> apple");
+});
+
+it("does not nest pronunciations", () => {
+  expect(applyPronunciations("joe", [{ text: "joe", pronunciation: "jo" }, { text: "oe", pronunciation: "o" }])).toBe("<<jo>>");
+  expect(applyPronunciations("a", [{ text: "a", pronunciation: "A" }, { text: "A", pronunciation: "a" }])).toBe("<<A>>");
+});
+
+it("matches pronunciations on Devanagari word boundaries", () => {
+  expect(applyPronunciations("हिंदी", [{ text: "हिंद", pronunciation: "Hind" }])).toBe("हिंदी");
+  expect(applyPronunciations("हिंद", [{ text: "हिंद", pronunciation: "Hind" }])).toBe("<<Hind>>");
 });
 
 it("detects text that arrived as question marks", () => {

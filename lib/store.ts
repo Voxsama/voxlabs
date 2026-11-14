@@ -62,6 +62,7 @@ export function listProjects(): ProjectSummary[] {
     const sum = (k: "paragraph_count" | "ready_count" | "duration_ms" | "generating_count" | "error_count") => own.reduce((n, c) => n + c[k], 0);
     return {
       ...p,
+      pronunciations: readPronunciations(p.pronunciations),
       chapter_count: own.length,
       paragraph_count: sum("paragraph_count"),
       ready_count: sum("ready_count"),
@@ -74,7 +75,9 @@ export function listProjects(): ProjectSummary[] {
 }
 
 export function getProject(id: string): Project {
-  return must(db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as Project | undefined, "Project");
+  const p = must(db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as Project | undefined, "Project");
+  p.pronunciations = readPronunciations(p.pronunciations);
+  return p;
 }
 
 export function createProject(p: Partial<Project> & { name: string }): Project {
@@ -102,8 +105,26 @@ export function createProject(p: Partial<Project> & { name: string }): Project {
 
 const PROJECT_FIELDS = [
   "name", "description", "voice_id", "voice_name", "model_id", "language", "speed",
-  "volume", "emotion", "sample_rate", "bit_depth", "paragraph_gap_ms",
+  "volume", "emotion", "sample_rate", "bit_depth", "paragraph_gap_ms", "pronunciations",
 ] as const;
+
+/** Validated pronunciation dictionary: array of {text, pronunciation}, capped at 100 x 200 chars. */
+function parsePronunciations(v: unknown): Project["pronunciations"] {
+  const list = Array.isArray(v) ? v.slice(0, 100) : [];
+  const cut = (s: unknown) => (typeof s === "string" ? s.slice(0, 200) : "");
+  return list
+    .map((e) => ({ text: cut((e as { text?: unknown })?.text), pronunciation: cut((e as { pronunciation?: unknown })?.pronunciation) }))
+    .filter((e) => e.text && e.pronunciation);
+}
+
+/** Raw `pronunciations` column (JSON text) -> validated array. */
+function readPronunciations(v: unknown): Project["pronunciations"] {
+  try {
+    return parsePronunciations(JSON.parse(v as string));
+  } catch {
+    return [];
+  }
+}
 
 export function updateProject(id: string, input: Partial<Project>): Project {
   const cur = getProject(id);
@@ -115,12 +136,13 @@ export function updateProject(id: string, input: Partial<Project>): Project {
   if ("bit_depth" in patch) patch.bit_depth = patch.bit_depth === "16" || patch.bit_depth === "32f" ? patch.bit_depth : cur.bit_depth;
   if ("paragraph_gap_ms" in patch) patch.paragraph_gap_ms = Math.round(clamp(patch.paragraph_gap_ms, 0, 5000, cur.paragraph_gap_ms));
   if ("name" in patch) patch.name = String(patch.name ?? "").trim() || cur.name;
+  if ("pronunciations" in patch) patch.pronunciations = parsePronunciations(patch.pronunciations);
   const sets: string[] = [];
   const vals: unknown[] = [];
   for (const f of PROJECT_FIELDS) {
     if (f in patch) {
       sets.push(`${f} = ?`);
-      vals.push(patch[f] ?? null);
+      vals.push(f === "pronunciations" ? JSON.stringify(patch[f]) : (patch[f] ?? null));
     }
   }
   sets.push("updated_at = ?");
@@ -198,7 +220,7 @@ export function duplicateProject(srcId: string, newName: string, resetChapters: 
     db.transaction(() => {
       db.prepare(
         `INSERT INTO projects (id, ${PROJECT_FIELDS.join(", ")}, created_at, updated_at) VALUES (?, ${PROJECT_FIELDS.map(() => "?").join(", ")}, ?, ?)`,
-      ).run(id, ...PROJECT_FIELDS.map((f) => (f === "name" ? code : src[f])), t, t);
+      ).run(id, ...PROJECT_FIELDS.map((f) => (f === "name" ? code : f === "pronunciations" ? JSON.stringify(src.pronunciations ?? []) : src[f])), t, t);
       for (const c of listChapters(srcId)) {
         const cid = newId();
         insChapter.run(cid, id, renameCode(c.name, src.name, code), c.position, c.voice_id, c.voice_name, t, t);
@@ -463,6 +485,7 @@ export interface ParagraphPatch {
   speed?: number | null;
   volume?: number | null;
   emotion?: string | null;
+  note?: string | null;
 }
 
 export function updateParagraph(id: string, patch: ParagraphPatch): Paragraph {
@@ -476,8 +499,12 @@ export function updateParagraph(id: string, patch: ParagraphPatch): Paragraph {
     emotion: "emotion" in patch ? patch.emotion || null : p.emotion,
   };
   db.prepare(
-    "UPDATE paragraphs SET text = ?, is_pause = ?, voice_id = ?, voice_name = ?, speed = ?, volume = ?, emotion = ?, updated_at = ? WHERE id = ?",
-  ).run(next.text, isPauseOnly(next.text) ? 1 : 0, next.voice_id, next.voice_name, next.speed, next.volume, next.emotion, now(), id);
+    "UPDATE paragraphs SET text = ?, is_pause = ?, voice_id = ?, voice_name = ?, speed = ?, volume = ?, emotion = ?, note = ?, updated_at = ? WHERE id = ?",
+  ).run(
+    next.text, isPauseOnly(next.text) ? 1 : 0, next.voice_id, next.voice_name, next.speed, next.volume, next.emotion,
+    "note" in patch ? String(patch.note ?? "").slice(0, 1000) || null : p.note,
+    now(), id,
+  );
   return getParagraph(id);
 }
 

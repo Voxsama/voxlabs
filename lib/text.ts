@@ -38,6 +38,28 @@ export function toTranscript(text: string): string {
     .trim();
 }
 
+/** Escapes regex metacharacters in user-supplied text. */
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Inline pronunciation dictionary: replace each `text` with Cartesia's `<<...>>` sounds-like
+ * notation. One pass over the transcript, longest match first, so a short entry can never match
+ * inside an earlier `<<...>>`. Boundaries are letter/number/mark lookarounds (\b does not work for
+ * Devanagari).
+ */
+export function applyPronunciations(transcript: string, list: { text: string; pronunciation: string }[]): string {
+  const pron = new Map<string, string>();
+  for (const { text, pronunciation } of [...list].sort((a, b) => b.text.length - a.text.length)) {
+    if (text && !pron.has(text)) pron.set(text, pronunciation);
+  }
+  if (!pron.size) return transcript;
+  const re = new RegExp(
+    `(?<![\\p{L}\\p{N}\\p{M}])(?:${[...pron.keys()].map(escapeRe).join("|")})(?![\\p{L}\\p{N}\\p{M}])`,
+    "u",
+  );
+  return transcript.replace(re, (m) => `<<${pron.get(m) ?? ""}>>`);
+}
+
 /** Spoken text only (tags removed). Used for counting and display. */
 export function plainText(text: string): string {
   return text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();

@@ -16,6 +16,8 @@ export interface Project {
   sample_rate: number; // 44100 | 48000
   bit_depth: BitDepth;
   paragraph_gap_ms: number;
+  /** Inline pronunciation dictionary: replace `text` with Cartesia's `<<pronunciation>>`. */
+  pronunciations: { text: string; pronunciation: string }[];
   created_at: string;
   updated_at: string;
 }
@@ -63,6 +65,7 @@ export interface Paragraph {
   speed: number | null;
   volume: number | null;
   emotion: string | null;
+  note: string | null;
   status: ParagraphStatus;
   error: string | null;
   active_version_id: string | null;

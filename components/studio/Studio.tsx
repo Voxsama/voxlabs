@@ -1,5 +1,5 @@
 "use client";
-import { AlertTriangle, AudioLines, Check, CheckCircle2, ChevronDown, ChevronRight, Clipboard, Download, Loader2, Pencil, Plus, RefreshCw, SlidersHorizontal, Square, Timer, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, AudioLines, Check, CheckCircle2, ChevronDown, ChevronRight, Clipboard, Download, Loader2, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Square, Timer, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VoicePicker } from "@/components/VoicePicker";
@@ -7,7 +7,7 @@ import { ErrorText } from "@/components/ui";
 import { api } from "@/lib/api";
 import { LANGUAGES, MODELS, SAMPLE_RATES } from "@/lib/constants";
 import { effectiveSettings, isStale, needsGeneration } from "@/lib/settings";
-import { isPauseOnly } from "@/lib/text";
+import { isPauseOnly, plainText } from "@/lib/text";
 import type { Chapter, Paragraph, Project, StudioEvent } from "@/lib/types";
 import { ExportDialog, ImportFilesDialog, PasteDialog, ProjectSettingsDialog } from "./dialogs";
 import { ParagraphRow, type FocusRequest, type RowActions } from "./ParagraphRow";
@@ -32,6 +32,7 @@ export function Studio({ projectId }: { projectId: string }) {
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [dialog, setDialog] = useState<null | "paste" | "import" | "export" | "settings">(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const player = useRef<PlayerHandle>(null);
   const chapterIdRef = useRef<string | null>(null);
   chapterIdRef.current = chapterId;
@@ -122,6 +123,14 @@ export function Studio({ projectId }: { projectId: string }) {
     }
     return { pending, busy, done, speakable, errors, changed };
   }, [paragraphs, chapterVoice, project]);
+  // Visual-only filter: hide rows whose text or note does not match the search (case-insensitive).
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return paragraphs;
+    return paragraphs.filter((p) => plainText(p.text).toLowerCase().includes(q) || (p.note ?? "").toLowerCase().includes(q));
+  }, [paragraphs, search]);
+  // True position of each paragraph, so the row badge keeps its number while a search filters the list.
+  const indexById = useMemo(() => new Map(paragraphs.map((p, i) => [p.id, i])), [paragraphs]);
 
   // ---- actions
   const actions: RowActions = useMemo(
@@ -365,6 +374,22 @@ export function Studio({ projectId }: { projectId: string }) {
                 <button className={ghost} onClick={() => setDialog("paste")}><Clipboard size={14} aria-hidden /> Paste text</button>
                 <button className={ghost} onClick={() => actions.insert(paragraphs.at(-1)?.id ?? "start", { text: "" })}><Plus size={14} aria-hidden /> Paragraph</button>
                 <button className={ghost} onClick={() => actions.insert(paragraphs.at(-1)?.id ?? "start", { pauseMs: 1000 })}><Timer size={14} aria-hidden /> Pause</button>
+                <div className="relative">
+                  <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" aria-hidden />
+                  <input
+                    className="input w-40 pl-7 text-[12.5px] paper:w-56"
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search text or note"
+                    aria-label="Search paragraphs"
+                  />
+                  {search.trim() && (
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 tabular-nums">
+                      {visible.length}/{paragraphs.length}
+                    </span>
+                  )}
+                </div>
                 <span
                   className="ml-auto flex items-center gap-1.5 text-xs text-neutral-500"
                   title="Enter: new paragraph (splits in the middle, adds above at the start) · Shift+Enter: new line · Backspace at the start: merge with the one above / delete an empty paragraph · Delete at the end: merge the next one · ↑/↓ move between paragraphs · paste several lines to add several paragraphs"
@@ -381,11 +406,11 @@ export function Studio({ projectId }: { projectId: string }) {
             )}
             <div className="min-h-0 flex-1 overflow-auto px-6 pt-1.5 pb-6 paper:pt-4" lang={project.language}>
               <div className="editor-col">
-                {paragraphs.map((p, i) => (
+                {visible.map((p, i) => (
                   <ParagraphRow
                     key={p.id}
                     p={p}
-                    index={i}
+                    index={indexById.get(p.id) ?? i}
                     chapter={chapterVoice}
                     project={project}
                     current={current === p.id}

@@ -112,7 +112,9 @@ export function migrate(db: Database.Database) {
   addCol("projects", "sample_rate", "INTEGER NOT NULL DEFAULT 44100");
   addCol("projects", "bit_depth", "TEXT NOT NULL DEFAULT '16'");
   addCol("projects", "paragraph_gap_ms", "INTEGER NOT NULL DEFAULT 450");
+  addCol("projects", "pronunciations", "TEXT NOT NULL DEFAULT '[]'");
   addCol("paragraphs", "volume", "REAL");
+  addCol("paragraphs", "note", "TEXT");
   if (addCol("paragraphs", "is_pause", "INTEGER NOT NULL DEFAULT 0")) {
     const rows = db.prepare("SELECT id, text FROM paragraphs").all() as { id: string; text: string }[];
     const set = db.prepare("UPDATE paragraphs SET is_pause = 1 WHERE id = ?");

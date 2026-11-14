@@ -67,6 +67,7 @@ function ParagraphSettingsModal({ p, chapter, project, onPatch, onClose }: {
   const [speed, setSpeed] = useState(p.speed);
   const [volume, setVolume] = useState(p.volume);
   const [emotion, setEmotion] = useState(p.emotion);
+  const [note, setNote] = useState(p.note ?? "");
   const [busy, setBusy] = useState(false);
 
   const reset = (show: boolean, label: string, clear: () => void) =>
@@ -75,7 +76,7 @@ function ParagraphSettingsModal({ p, chapter, project, onPatch, onClose }: {
   const save = async () => {
     setBusy(true);
     try {
-      await onPatch({ voice_id: voice?.id ?? null, voice_name: voice?.name ?? null, speed, volume, emotion });
+      await onPatch({ voice_id: voice?.id ?? null, voice_name: voice?.name ?? null, speed, volume, emotion, note });
       onClose();
     } finally {
       setBusy(false);
@@ -107,6 +108,9 @@ function ParagraphSettingsModal({ p, chapter, project, onPatch, onClose }: {
           </Field>
           <p className="mt-1 text-xs text-neutral-500">{EMOTION_NOTE}</p>
         </div>
+        <Field label="Note">
+          <textarea className="input" rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reminder about this paragraph (never affects audio)" />
+        </Field>
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? "Saving..." : "Save"}</button>
@@ -121,10 +125,15 @@ export function ProjectGenerationFields({
   value,
   onChange,
 }: {
-  value: Pick<Project, "voice_id" | "voice_name" | "model_id" | "language" | "speed" | "volume" | "emotion" | "sample_rate" | "bit_depth" | "paragraph_gap_ms">;
+  value: Pick<Project, "voice_id" | "voice_name" | "model_id" | "language" | "speed" | "volume" | "emotion" | "sample_rate" | "bit_depth" | "paragraph_gap_ms" | "pronunciations">;
   onChange: (patch: Partial<Project>) => void;
 }) {
   const v = value;
+  const prons = v.pronunciations ?? [];
+  const setPron = (i: number, key: "text" | "pronunciation", val: string) => {
+    const next = prons.map((p, j) => (j === i ? { ...p, [key]: val } : p));
+    onChange({ pronunciations: next });
+  };
   return (
     <div className="space-y-3">
       <div>
@@ -167,6 +176,18 @@ export function ProjectGenerationFields({
       <Field label="Gap between paragraphs (ms)">
         <input className="input" type="number" min={0} max={2000} step={50} value={v.paragraph_gap_ms} onChange={(e) => onChange({ paragraph_gap_ms: Math.min(2000, Math.max(0, Number(e.target.value) || 0)) })} />
       </Field>
+      <div>
+        <span className="label">Pronunciation</span>
+        {prons.map((p, i) => (
+          <div key={i} className="mt-1 flex gap-2">
+            <input className="input" placeholder="Word" value={p.text} onChange={(e) => setPron(i, "text", e.target.value)} aria-label={`Word ${i + 1}`} />
+            <input className="input" placeholder="Say as" value={p.pronunciation} onChange={(e) => setPron(i, "pronunciation", e.target.value)} aria-label={`Say as ${i + 1}`} />
+            <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${p.text || "entry"}`} onClick={() => onChange({ pronunciations: prons.filter((_, j) => j !== i) })}>✕</button>
+          </div>
+        ))}
+        <button type="button" className="btn btn-sm mt-2" onClick={() => onChange({ pronunciations: [...prons, { text: "", pronunciation: "" }] })}>Add</button>
+        <p className="mt-1 text-xs text-neutral-500">Phonetic spelling Cartesia reads in place of the word. Existing lines keep their old audio — use Regenerate (all) to re-record with the new pronunciations.</p>
+      </div>
       <p className="text-xs text-neutral-500">Stability, similarity, style exaggeration and speaker boost are ElevenLabs settings; Cartesia has no equivalent.</p>
     </div>
   );

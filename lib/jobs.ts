@@ -6,7 +6,7 @@ import { AUDIO_DIR, getSetting } from "./db";
 import { emit } from "./events";
 import { effectiveSettings, needsGeneration, settingsSnapshot, type GenSettings } from "./settings";
 import { addVersion, getChapter, getParagraph, getProject, listParagraphs, nextVersionNo, projectIdOfParagraph, setStatus } from "./store";
-import { isPauseOnly, toTranscript } from "./text";
+import { applyPronunciations, isPauseOnly, toTranscript } from "./text";
 import type { Paragraph } from "./types";
 import { buildWav, durationMs, formatFor, parseWav } from "./wav";
 
@@ -191,11 +191,19 @@ async function runJob(job: Job) {
     return;
   }
   const fmt = formatFor(s.sampleRate, s.bitDepth);
+  // Project pronunciation dictionary applied to the final transcript (after toTranscript; before the WS continuation wrapper).
+  let prons: { text: string; pronunciation: string }[] = [];
+  try {
+    prons = getProject(getChapter(ps[0].chapter_id).project_id).pronunciations;
+  } catch {
+    /* no project or malformed JSON behaves as no dictionary */
+  }
+  const transcript = (i: number) => (isPauseOnly(texts[i]) ? toTranscript(texts[i]) : applyPronunciations(toTranscript(texts[i]), prons));
 
   if (ps.length > 1) {
     try {
       setStatus(ps[0].id, "generating");
-      await generateRun(texts.map(toTranscript), s, {
+      await generateRun(texts.map((_, i) => transcript(i)), s, {
         signal: job.abort.signal,
         onAudio: (i, pcm) => {
           try {
@@ -227,7 +235,7 @@ async function runJob(job: Job) {
     try {
       setStatus(p.id, "generating");
       const audio = await ttsWithRetry({
-        transcript: toTranscript(texts[i]),
+        transcript: transcript(i),
         voiceId: s.voiceId!,
         modelId: s.modelId,
         language: s.language,

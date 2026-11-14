@@ -29,13 +29,14 @@ export function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-export type AudioFormat = "wav" | "mp3" | "flac" | "ogg";
+export type AudioFormat = "wav" | "mp3" | "flac" | "ogg" | "m4b";
 
 export const FORMAT_MIME: Record<AudioFormat, string> = {
   wav: "audio/wav",
   mp3: "audio/mpeg",
   flac: "audio/flac",
   ogg: "audio/ogg",
+  m4b: "audio/mp4",
 };
 
 /** Transcode a WAV file into another format. `float` input becomes 24-bit FLAC (FLAC has no float). */
@@ -45,8 +46,28 @@ export async function transcode(input: string, output: string, format: AudioForm
     mp3: ["-c:a", "libmp3lame", "-b:a", `${mp3Kbps}k`],
     flac: float ? ["-c:a", "flac", "-sample_fmt", "s32", "-bits_per_raw_sample", "24"] : ["-c:a", "flac"],
     ogg: ["-c:a", "libvorbis", "-q:a", "6"],
+    m4b: ["-c:a", "aac", "-b:a", `${mp3Kbps}k`],
   };
-  await runFfmpeg(["-i", input, ...codec[format], output]);
+  // m4b uses the ipod muxer (the classic m4b container).
+  const muxer = format === "m4b" ? ["-f", "ipod"] : [];
+  await runFfmpeg(["-i", input, ...codec[format], ...muxer, output]);
+}
+
+/**
+ * Encode a WAV into an m4b audiobook with real chapter markers.
+ * `chapters` is [{ title, startMs, endMs }] on the merged timeline.
+ */
+export async function transcodeM4b(input: string, output: string, chapters: { title: string; startMs: number; endMs: number }[], kbps: number) {
+  // FFMETADATA1: escape ; = # \ and newlines (replace with a space).
+  const clean = (s: string) => s.replace(/[;=#\\\n\r]/g, " ").trim() || "chapter";
+  const meta = [";FFMETADATA1", ...chapters.flatMap((c) => ["[CHAPTER]", "TIMEBASE=1/1000", `START=${Math.round(c.startMs)}`, `END=${Math.round(c.endMs)}`, `title=${clean(c.title)}`])].join("\n") + "\n";
+  const metaFile = `${output}.${process.pid}.meta`;
+  fs.writeFileSync(metaFile, meta);
+  try {
+    await runFfmpeg(["-i", input, "-i", metaFile, "-map_metadata", "1", "-map", "0:a", "-c:a", "aac", "-b:a", `${kbps}k`, "-f", "ipod", output]);
+  } finally {
+    fs.rmSync(metaFile, { force: true });
+  }
 }
 
 /** Convert any audio clip to mono 44.1 kHz WAV, optionally trimmed (seconds). */

@@ -4,7 +4,7 @@ import path from "node:path";
 import { ZipArchive } from "archiver";
 import { renderChapter } from "./chapterAudio";
 import { AUDIO_DIR, db } from "./db";
-import { FORMAT_MIME, transcode, type AudioFormat } from "./ffmpeg";
+import { FORMAT_MIME, transcode, transcodeM4b, type AudioFormat } from "./ffmpeg";
 import { getProject, listChapters, listParagraphs } from "./store";
 import { isPauseOnly, pauseDurationMs } from "./text";
 import type { Chapter } from "./types";
@@ -99,13 +99,29 @@ export async function runExport(req: ExportRequest): Promise<ExportResult> {
 
     if (req.structure === "merged") {
       const segs: Segment[] = [];
+      const rendered: { name: string; durationMs: number }[] = [];
       for (const c of chapters) {
         const r = renderChapter(c.id);
-        if (r.file) segs.push({ kind: "audio", wav: fs.readFileSync(r.file) });
+        if (r.file) {
+          segs.push({ kind: "audio", wav: fs.readFileSync(r.file) });
+          rendered.push({ name: c.name, durationMs: r.durationMs });
+        }
       }
       const merged = path.join(tmp, "merged.wav");
       fs.writeFileSync(merged, concatWav(segs).wav);
       const name = chapters.length === 1 ? safeName(chapters[0].name) : base;
+      if (ext === "m4b") {
+        // Chapter starts are the cumulative durations of the concatenated chapter WAVs.
+        let start = 0;
+        const chaptersMeta = rendered.map((c) => {
+          const m = { title: c.name, startMs: start, endMs: start + c.durationMs };
+          start = m.endMs;
+          return m;
+        });
+        const out = path.join(tmp, `${name}.m4b`);
+        await transcodeM4b(merged, out, chaptersMeta, kbps);
+        return { file: out, filename: path.basename(out), mime: FORMAT_MIME.m4b, cleanup };
+      }
       const out = await encode(merged, `${name}.${ext}`);
       return { file: out, filename: path.basename(out), mime: FORMAT_MIME[ext], cleanup };
     }

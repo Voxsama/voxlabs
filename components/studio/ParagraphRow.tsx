@@ -1,5 +1,5 @@
 "use client";
-import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, AudioLines, CheckCircle2, CircleDashed, History, Loader2, Pencil, Play, RefreshCw, Timer, Trash2, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, AudioLines, CheckCircle2, CircleDashed, History, Loader2, Pencil, Play, RefreshCw, StickyNote, Timer, Trash2, type LucideIcon } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -411,6 +411,7 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
               <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                 <ParagraphSettingsChip p={p} chapter={chapter} project={project} onPatch={patch} />
               </span>
+              {p.note && <span className="inline-flex items-center" title={p.note}><StickyNote size={14} className="text-amber-300" aria-label="Has a note" /></span>}
               {rowActions}
             </div>
           </>

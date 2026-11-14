@@ -129,7 +129,7 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
   const [scope, setScope] = useState<"all" | "current" | "pick">("all");
   const [picked, setPicked] = useState<Set<string>>(new Set(currentChapterId ? [currentChapterId] : []));
   const [structure, setStructure] = useState<"chapters" | "merged" | "paragraphs">("chapters");
-  const [format, setFormat] = useState<"wav" | "mp3" | "flac" | "ogg">("wav");
+  const [format, setFormat] = useState<"wav" | "mp3" | "flac" | "ogg" | "m4b">("wav");
   const [kbps, setKbps] = useState(192);
   const [includeScript, setIncludeScript] = useState(true);
   const [check, setCheck] = useState<ExportCheck | null>(null);
@@ -187,7 +187,7 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
           </div>
         )}
         <Field label="File structure">
-          <select className="input" value={structure} onChange={(e) => setStructure(e.target.value as typeof structure)}>
+          <select className="input" value={structure} disabled={format === "m4b"} onChange={(e) => setStructure(e.target.value as typeof structure)}>
             <option value="chapters">Chapters ZIP: one audio file per chapter</option>
             <option value="merged">Single file: all selected chapters joined</option>
             <option value="paragraphs">Paragraphs ZIP: one folder per chapter, one file per paragraph</option>
@@ -195,15 +195,24 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Audio format">
-            <select className="input" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>
+            <select
+              className="input"
+              value={format}
+              onChange={(e) => {
+                const f = e.target.value as typeof format;
+                setFormat(f);
+                if (f === "m4b") setStructure("merged"); // chapter markers need a single file
+              }}
+            >
               <option value="wav">WAV</option>
               <option value="mp3">MP3</option>
               <option value="flac">FLAC</option>
               <option value="ogg">OGG Vorbis</option>
+              <option value="m4b">M4B (audiobook, chaptered)</option>
             </select>
           </Field>
-          {format === "mp3" && (
-            <Field label="MP3 bitrate">
+          {(format === "mp3" || format === "m4b") && (
+            <Field label={format === "m4b" ? "AAC bitrate" : "MP3 bitrate"}>
               <select className="input" value={kbps} onChange={(e) => setKbps(Number(e.target.value))}>
                 {[128, 192, 256, 320].map((k) => <option key={k} value={k}>{k} kbps</option>)}
               </select>
@@ -211,7 +220,7 @@ export function ExportDialog({ project, chapters, currentChapterId, onClose }: {
           )}
         </div>
         <p className="text-xs text-neutral-500">
-          Source audio: {project.sample_rate / 1000} kHz · {project.bit_depth === "32f" ? "32-bit float" : "16-bit"}. WAV export keeps it{project.bit_depth === "32f" ? "; FLAC is 24-bit" : ""}.
+          Source audio: {project.sample_rate / 1000} kHz · {project.bit_depth === "32f" ? "32-bit float" : "16-bit"}. WAV export keeps it{project.bit_depth === "32f" ? "; FLAC is 24-bit" : ""}{format === "m4b" ? ". M4B is a single file with chapter markers" : ""}.
         </p>
         {structure !== "merged" && (
           <label className="flex items-center gap-2">
@@ -249,8 +258,8 @@ export function ProjectSettingsDialog({ project, onClose, onSaved }: { project: 
   const router = useRouter();
   const [name, setName] = useState(project.name);
   const [gen, setGen] = useState(() => {
-    const { voice_id, voice_name, model_id, language, speed, volume, emotion, sample_rate, bit_depth, paragraph_gap_ms } = project;
-    return { voice_id, voice_name, model_id, language, speed, volume, emotion, sample_rate, bit_depth, paragraph_gap_ms };
+    const { voice_id, voice_name, model_id, language, speed, volume, emotion, sample_rate, bit_depth, paragraph_gap_ms, pronunciations } = project;
+    return { voice_id, voice_name, model_id, language, speed, volume, emotion, sample_rate, bit_depth, paragraph_gap_ms, pronunciations };
   });
   const [error, setError] = useState<string | null>(null);
   const patchGen = (patch: Partial<Project>) => setGen((g) => ({ ...g, ...patch }));
