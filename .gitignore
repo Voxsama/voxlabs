@@ -7,7 +7,7 @@ next-env.d.ts
 
 # Claude Code local settings and Impeccable caches
 .claude/settings.local.json
-.impeccable/hook.cache.json
+.impeccable/
 .impeccable/config.local.json
 
 # graphify code-graph build output (rebuilt with: graphify update .)
