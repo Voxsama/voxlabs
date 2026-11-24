@@ -40,6 +40,9 @@ interface Props {
   playback: { elapsedMs: number; durationMs: number; playing: boolean } | null;
   focusRequest: FocusRequest | null;
   actions: RowActions;
+  /** Bulk selection: show the row's checkbox, toggle it on demand. */
+  selected?: boolean;
+  onToggle?: (id: string) => void;
 }
 
 type Kind = "playing" | "generating" | "queued" | "error" | "changed" | "generated" | "none";
@@ -94,7 +97,7 @@ function caretTop(el: HTMLTextAreaElement, pos: number): number {
   return top;
 }
 
-function ParagraphRowInner({ p, index, chapter, project, current, playback, focusRequest, actions }: Props) {
+function ParagraphRowInner({ p, index, chapter, project, current, playback, focusRequest, actions, selected = false, onToggle }: Props) {
   const [dirty, setDirty] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
@@ -327,7 +330,7 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
         </button>
       )}
       {!pause && (
-        <button className={act} aria-label={p.active_version_id ? "Regenerate" : "Generate"} title="Ctrl/Cmd+Enter" disabled={p.status === "queued" || p.status === "generating"} onClick={regenerate}>
+        <button className={act} aria-label={p.active_version_id ? "Regenerate" : "Generate"} title={p.regenerations > 0 ? `Ctrl/Cmd+Enter · regenerated ${p.regenerations}×` : "Ctrl/Cmd+Enter"} disabled={p.status === "queued" || p.status === "generating"} onClick={regenerate}>
           <RefreshCw size={14} aria-hidden />{wideLabel(p.active_version_id ? "Regenerate" : "Generate")}
         </button>
       )}
@@ -362,7 +365,19 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
         current ? "bg-purple-950/40 paper:border-purple-900" : "hover:bg-neutral-900 focus-within:bg-neutral-900 paper:hover:border-neutral-700 paper:hover:shadow-sm paper:focus-within:border-neutral-700"
       } ${kind === "error" ? "paper:bg-red-950 paper:border-red-900" : ""}`}
     >
-      <div className={`text-right text-xs tabular-nums ${pause ? "self-center" : "pt-[7px]"} ${current ? "text-purple-300" : "text-neutral-500"}`}>{index + 1}</div>
+      <div className={`flex flex-col items-center gap-1 ${pause ? "self-center" : "self-start pt-[7px]"}`}>
+        <div className={`text-xs tabular-nums leading-none ${current ? "text-purple-300" : "text-neutral-500"}`}>{index + 1}</div>
+        {onToggle && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggle(p.id)}
+            aria-label={`Select paragraph ${index + 1}`}
+            title="Select"
+            className={`h-3.5 w-3.5 cursor-pointer appearance-none rounded-[3px] border border-neutral-500 transition-opacity ${selected ? "border-accent bg-accent opacity-100" : "bg-transparent opacity-0 group-hover:opacity-100"}`}
+          />
+        )}
+      </div>
       <div className={pause ? "border-l-[3px] border-dotted border-neutral-700" : `rounded-sm ${current ? "bg-purple-500" : k.bar}`} />
       <div className="min-w-0">
         {pause ? (

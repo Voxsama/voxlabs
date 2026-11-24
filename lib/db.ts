@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS paragraphs (
   status TEXT NOT NULL DEFAULT 'idle',
   error TEXT,
   active_version_id TEXT,
+  regenerations INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_paragraphs_chapter ON paragraphs(chapter_id, position);
@@ -121,6 +122,7 @@ export function migrate(db: Database.Database) {
   addCol("projects", "pronunciations", "TEXT NOT NULL DEFAULT '[]'");
   addCol("projects", "folder", "TEXT NOT NULL DEFAULT ''");
   addCol("projects", "archived_at", "TEXT");
+  addCol("paragraphs", "regenerations", "INTEGER NOT NULL DEFAULT 0");
   addCol("paragraphs", "volume", "REAL");
   addCol("paragraphs", "note", "TEXT");
   if (addCol("paragraphs", "is_pause", "INTEGER NOT NULL DEFAULT 0")) {

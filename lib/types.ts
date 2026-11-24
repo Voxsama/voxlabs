@@ -74,6 +74,8 @@ export interface Paragraph {
   volume: number | null;
   emotion: string | null;
   note: string | null;
+  /** How many times a new audio version was generated for this paragraph. */
+  regenerations: number;
   status: ParagraphStatus;
   error: string | null;
   active_version_id: string | null;

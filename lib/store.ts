@@ -558,6 +558,53 @@ export function deleteParagraph(id: string) {
   deleteVersionFiles(id);
   db.prepare("DELETE FROM paragraphs WHERE id = ?").run(id);
   renumber("paragraphs", "chapter_id", p.chapter_id);
+  clearChapterCache([p.chapter_id]);
+}
+
+/**
+ * Delete several paragraphs at once: one pass for the files, then renumber each affected
+ * chapter once (deleting one at a time would renumber the whole tail per row), then drop the
+ * cached chapter renders. Deleted ids that no longer exist are skipped.
+ */
+export function deleteParagraphs(ids: string[]): { deleted: number; chapters: string[] } {
+  const files: string[] = [];
+  const chapters = new Set<string>();
+  let deleted = 0;
+  db.transaction(() => {
+    for (const id of ids) {
+      const p = db.prepare("SELECT id, chapter_id FROM paragraphs WHERE id = ?").get(id) as { id: string; chapter_id: string } | undefined;
+      if (!p) continue;
+      files.push(...versionFiles(p.id));
+      db.prepare("DELETE FROM paragraphs WHERE id = ?").run(p.id);
+      chapters.add(p.chapter_id);
+      deleted++;
+    }
+    for (const cid of chapters) renumber("paragraphs", "chapter_id", cid);
+  })();
+  for (const f of files) fs.rmSync(f, { force: true });
+  clearChapterCache([...chapters]);
+  return { deleted, chapters: [...chapters] };
+}
+
+/** Assign voice/speed/volume/emotion to many paragraphs at once, keeping each row's text. */
+export function setParagraphVoice(ids: string[], patch: Pick<ParagraphPatch, "voice_id" | "voice_name" | "speed" | "volume" | "emotion">): number {
+  const stmt = db.prepare(
+    "UPDATE paragraphs SET voice_id = ?, voice_name = ?, speed = ?, volume = ?, emotion = ?, updated_at = ? WHERE id = ?",
+  );
+  let n = 0;
+  db.transaction(() => {
+    for (const id of ids) {
+      const p = db.prepare("SELECT id FROM paragraphs WHERE id = ?").get(id);
+      if (!p) continue;
+      const speed = "speed" in patch ? clamp(patch.speed, 0.6, 1.5, null) : null;
+      const volume = "volume" in patch ? clamp(patch.volume, 0.5, 2, null) : null;
+      const emotion = "emotion" in patch ? patch.emotion || null : null;
+      const [vid, vname] = "voice_id" in patch ? [patch.voice_id ?? null, patch.voice_name ?? null] : [null, null];
+      stmt.run(vid, vname, speed, volume, emotion, now(), id);
+      n++;
+    }
+  })();
+  return n;
 }
 
 /** Split a paragraph at a character offset. The first part keeps the audio history (now stale). */
@@ -636,7 +683,10 @@ export function addVersion(
       `INSERT INTO audio_versions (id, paragraph_id, version_no, file_path, duration_ms, model_id, voice_id, text_snapshot, settings_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(id, paragraphId, n, v.file_path, v.duration_ms, v.model_id, v.voice_id, v.text_snapshot, JSON.stringify(v.settings), now());
-    db.prepare("UPDATE paragraphs SET active_version_id = ?, status = 'done', error = NULL WHERE id = ?").run(id, paragraphId);
+    // Count a regeneration only once a version already exists; the first take is the initial
+    // generation, not a regeneration.
+    db.prepare("UPDATE paragraphs SET active_version_id = ?, status = 'done', error = NULL, regenerations = regenerations + ? WHERE id = ?")
+      .run(id, n > 1 ? 1 : 0, paragraphId);
   })();
   return getVersion(id);
 }

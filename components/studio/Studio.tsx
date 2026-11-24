@@ -1,5 +1,5 @@
 "use client";
-import { AlertTriangle, AudioLines, Check, CheckCircle2, ChevronDown, ChevronRight, Clipboard, Download, Loader2, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Square, Timer, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, AudioLines, Check, CheckCircle2, ChevronDown, ChevronRight, Clipboard, Download, Loader2, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Square, Timer, Trash2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VoicePicker } from "@/components/VoicePicker";
@@ -33,6 +33,7 @@ export function Studio({ projectId }: { projectId: string }) {
   const [dialog, setDialog] = useState<null | "paste" | "import" | "export" | "settings">(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const player = useRef<PlayerHandle>(null);
   const chapterIdRef = useRef<string | null>(null);
   chapterIdRef.current = chapterId;
@@ -129,6 +130,7 @@ export function Studio({ projectId }: { projectId: string }) {
     if (!q) return paragraphs;
     return paragraphs.filter((p) => plainText(p.text).toLowerCase().includes(q) || (p.note ?? "").toLowerCase().includes(q));
   }, [paragraphs, search]);
+  const selectedCount = useMemo(() => visible.filter((p) => selected.has(p.id)).length, [visible, selected]);
   // True position of each paragraph, so the row badge keeps its number while a search filters the list.
   const indexById = useMemo(() => new Map(paragraphs.map((p, i) => [p.id, i])), [paragraphs]);
 
@@ -195,6 +197,54 @@ export function Studio({ projectId }: { projectId: string }) {
     try {
       const r = await api<{ queued: number }>(`/api/chapters/${chapterId}/generate`, { method: "POST", json: { all } });
       if (!r.queued) setError("Nothing to generate: all paragraphs are up to date.");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  // ---- bulk selection
+  const toggleSelect = useCallback((id: string) => setSelected((s) => {
+    const n = new Set(s);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  }), []);
+  const selectAll = () => setSelected(new Set(visible.map((p) => p.id)));
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkDelete = async () => {
+    if (!selected.size) return;
+    if (!confirm(`Delete ${selected.size} paragraph${selected.size > 1 ? "s" : ""}? Their audio files will be removed and positions renumbered.`)) return;
+    try {
+      await api("/api/paragraphs/bulk", { method: "POST", json: { action: "delete", ids: [...selected] } });
+      setSelected(new Set());
+      await loadProject();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const [voiceDialog, setVoiceDialog] = useState(false);
+  const [patchVoice, setPatchVoice] = useState({ voice_id: "", speed: null as number | null, volume: null as number | null, emotion: "" });
+  const applyVoice = async () => {
+    if (!selected.size) return;
+    try {
+      await api("/api/paragraphs/bulk", {
+        method: "POST",
+        json: {
+          action: "voice",
+          ids: [...selected],
+          voice: {
+            voice_id: patchVoice.voice_id || undefined,
+            voice_name: undefined,
+            speed: patchVoice.speed,
+            volume: patchVoice.volume,
+            emotion: patchVoice.emotion || undefined,
+          },
+        },
+      });
+      setVoiceDialog(false);
+      setSelected(new Set());
+      await loadProject();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -391,6 +441,15 @@ export function Studio({ projectId }: { projectId: string }) {
                     </span>
                   )}
                 </div>
+                {selectedCount > 0 && (
+                  <button
+                    className="btn btn-sm btn-primary ml-2"
+                    onClick={() => setSelected(new Set(visible.map((p) => p.id)))}
+                    title={`Select all ${visible.length} visible rows`}
+                  >
+                    Select all
+                  </button>
+                )}
                 <span
                   className="ml-auto flex items-center gap-1.5 text-xs text-neutral-500"
                   title="Enter: new paragraph (splits in the middle, adds above at the start) · Shift+Enter: new line · Backspace at the start: merge with the one above / delete an empty paragraph · Delete at the end: merge the next one · ↑/↓ move between paragraphs · paste several lines to add several paragraphs"
@@ -403,6 +462,18 @@ export function Studio({ projectId }: { projectId: string }) {
             {error && (
               <div className="px-6 pt-2" onClick={() => setError(null)}>
                 <ErrorText error={error + "  (click to dismiss)"} />
+              </div>
+            )}
+            {selectedCount > 0 && (
+              <div className="mx-6 mt-2 flex flex-wrap items-center gap-2 rounded-(--radius) border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+                <span className="font-medium tabular-nums">{selectedCount} selected</span>
+                <span className="mx-1 h-4 w-px bg-neutral-700" aria-hidden />
+                <button className="btn btn-sm" onClick={selectAll}>All visible</button>
+                <button className="btn btn-sm" onClick={clearSelection}>Clear</button>
+                <span className="mx-1 h-4 w-px bg-neutral-700" aria-hidden />
+                <button className="btn btn-sm" onClick={() => setVoiceDialog(true)}>Set voice…</button>
+                <button className="btn btn-sm text-red-400" onClick={bulkDelete}><Trash2 size={14} aria-hidden /> Delete</button>
+                <button className="btn btn-sm btn-ghost ml-auto" onClick={clearSelection} aria-label="Clear selection"><X size={14} aria-hidden /></button>
               </div>
             )}
             <div className="min-h-0 flex-1 overflow-auto px-6 pt-1.5 pb-6 paper:pt-4" lang={project.language}>
@@ -418,6 +489,8 @@ export function Studio({ projectId }: { projectId: string }) {
                     playback={current === p.id && curItem ? { elapsedMs: pos.ms - curItem.startMs, durationMs: curItem.durationMs, playing: pos.playing } : null}
                     focusRequest={focusRequest?.id === p.id ? focusRequest : null}
                     actions={actions}
+                    selected={selected.has(p.id)}
+                    onToggle={toggleSelect}
                   />
                 ))}
                 {paragraphs.length > 0 ? (
