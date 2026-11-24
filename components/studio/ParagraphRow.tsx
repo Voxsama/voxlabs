@@ -126,15 +126,17 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
   useEffect(() => {
     const el = ta.current;
     if (focusRequest?.id !== p.id || !el) return;
-    el.focus();
+    el.focus({ preventScroll: true });
     const c = focusRequest.caret;
     const pos = c === "start" ? 0 : c === "end" ? el.value.length : Math.min(c, el.value.length);
     el.setSelectionRange(pos, pos);
   }, [focusRequest, p.id]);
 
+  // Follow the playhead only while listening: a paused current-row change (the highlight moves when
+  // a chapter is rebuilt after a regenerate) must not scroll the list.
   useEffect(() => {
-    if (current) rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [current]);
+    if (current && playback?.playing) rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [current, playback?.playing]);
 
   const patch = async (body: object) => {
     try {
@@ -394,12 +396,12 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
               placeholder="Type or paste text..."
               className="block w-full resize-none overflow-hidden script bg-transparent text-neutral-100 outline-none"
             />
-            <div className="mt-0.5 flex min-h-[26px] flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-neutral-500 tabular-nums">
+            <div className="mt-0.5 flex min-h-[26px] flex-nowrap items-center gap-x-2.5 overflow-hidden text-xs text-neutral-500 tabular-nums">
               <span className={`inline-flex items-center gap-1.5 font-medium ${k.color}`}>
                 <k.Icon size={14} aria-hidden className={kind === "generating" ? "animate-spin" : ""} />
                 {k.label}
               </span>
-              {kind === "error" && p.error && <span className="text-red-300">{p.error}</span>}
+              {kind === "error" && p.error && <span className="min-w-0 truncate text-red-300" title={p.error}>{p.error}</span>}
               {duration && (
                 <span>
                   {duration}

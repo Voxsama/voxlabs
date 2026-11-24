@@ -68,6 +68,8 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
     }
     a.currentTime = ms / 1000;
     setT(ms);
+    // Record the seek, so a real jump to 0 is not mistaken for the reload that resets to 0.
+    lastPos.current = { ms, playing: play ?? !a.paused };
     if (play) a.play().catch(() => {});
   };
 
@@ -101,6 +103,12 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
     const a = audio.current!;
     const ms = a.currentTime * 1000;
     setT(ms);
+    // A new src (chapter rebuilt after a regenerate) resets currentTime to 0 until the saved
+    // position is restored. Reading it here would report the first paragraph as current, so
+    // the row would scroll the list to the top and the restore would scroll it back — the
+    // page "jumping". readyState still reports the old resource's metadata at that moment,
+    // so compare against the position we know we were at instead.
+    if (ms === 0 && lastPos.current.ms > 0) return;
     lastPos.current = { ms, playing: !a.paused };
     onPosition(ms, !a.paused);
     const id = currentItem(ms)?.paragraphId ?? null;
@@ -193,7 +201,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
       </div>
       <div className="min-w-0">
         <div className="mb-1.5 flex justify-between gap-4 text-[11px] text-neutral-500 tabular-nums">
-          <span className="min-w-0">
+          <span className="min-w-0 truncate">
             {!src ? "Generate paragraphs to listen to this chapter." : cur?.pause ? <b className="font-medium text-neutral-300">Pause</b> : curIndex >= 0 && (
               <>
                 <b className="font-medium text-neutral-300">¶ {curIndex + 1}</b> · {curWords.slice(0, 8).join(" ")}{curWords.length > 8 ? "…" : ""}
