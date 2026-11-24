@@ -4,7 +4,7 @@ import { createChapter, createProject, createProjectFromTemplate, duplicateProje
 import { splitIntoParagraphs, type SplitMode } from "@/lib/text";
 import type { Project } from "@/lib/types";
 
-export const GET = handle(async (_req: Request) => json(listProjects()));
+export const GET = handle(async (req: Request) => json(listProjects(req.url.includes("archived=1"))));
 
 /**
  * JSON body creates an empty project, or one from a template (`templateId`) or a copy of another project

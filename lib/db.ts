@@ -119,6 +119,8 @@ export function migrate(db: Database.Database) {
   addCol("projects", "bit_depth", "TEXT NOT NULL DEFAULT '16'");
   addCol("projects", "paragraph_gap_ms", "INTEGER NOT NULL DEFAULT 450");
   addCol("projects", "pronunciations", "TEXT NOT NULL DEFAULT '[]'");
+  addCol("projects", "folder", "TEXT NOT NULL DEFAULT ''");
+  addCol("projects", "archived_at", "TEXT");
   addCol("paragraphs", "volume", "REAL");
   addCol("paragraphs", "note", "TEXT");
   if (addCol("paragraphs", "is_pause", "INTEGER NOT NULL DEFAULT 0")) {

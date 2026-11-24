@@ -44,12 +44,15 @@ export default function ProjectsPage() {
   const [credits, setCredits] = useState<CreditsInfo | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<"updated" | "name" | "progress">("updated");
+  const [sort, setSort] = useState<"updated" | "name" | "progress" | "folder">("updated");
+  const [folder, setFolder] = useState<string | "all">("all");
+  const [archived, setArchived] = useState(false);
   const [creating, setCreating] = useState<null | "new" | "import">(null);
   const [error, setError] = useState<string | null>(null);
   const search = useRef<HTMLInputElement>(null);
 
-  const load = () => api<ProjectSummary[]>("/api/projects").then(setProjects).catch((e) => setError(e.message));
+  const load = (a = archived) =>
+    api<ProjectSummary[]>(a ? "/api/projects?archived=1" : "/api/projects").then(setProjects).catch((e) => setError(e.message));
   useEffect(() => {
     load();
     fetch("/api/credits").then((r) => (r.ok ? r.json() : null)).then(setCredits).catch(() => {});
@@ -63,6 +66,7 @@ export default function ProjectsPage() {
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const act = async (fn: () => Promise<unknown>) => {
@@ -77,6 +81,19 @@ export default function ProjectsPage() {
     const name = prompt("Rename project", p.name)?.trim();
     if (name && name !== p.name) act(() => api(`/api/projects/${p.id}`, { method: "PATCH", json: { name } }));
   };
+  const moveFolder = (p: ProjectSummary) => {
+    const f = prompt("Move to a folder (leave empty for no folder)", p.folder);
+    if (f !== null) act(() => api(`/api/projects/${p.id}`, { method: "PATCH", json: { folder: f.trim() } }));
+  };
+  const archive = (p: ProjectSummary) => {
+    if (!archived && !confirm(`Archive "${p.name}"? It keeps all its chapters and audio, and just leaves this list.`)) return;
+    act(() => api(`/api/projects/${p.id}`, { method: "PATCH", json: { archive: !archived } }));
+  };
+  const toggleArchived = (a: boolean) => {
+    setArchived(a);
+    setFolder("all");
+    load(a);
+  };
   const remove = (p: ProjectSummary) => {
     if (confirm(`Delete "${p.name}" and all its chapters and audio? This cannot be undone.`)) act(() => api(`/api/projects/${p.id}`, { method: "DELETE" }));
   };
@@ -84,10 +101,27 @@ export default function ProjectsPage() {
   const all = projects ?? [];
   const needle = q.trim().toLowerCase();
   const matched = all.filter((p) => !needle || [p.name, ...p.chapters.map((c) => c.name)].some((n) => n.toLowerCase().includes(needle)));
+  const folders = [...new Set(all.map((p) => p.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   const count = (f: Filter) => (f === "all" ? matched.length : matched.filter((p) => progressOf(p) === f).length);
   const shown = matched
     .filter((p) => filter === "all" || progressOf(p) === filter)
-    .sort(sort === "name" ? (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }) : sort === "progress" ? (a, b) => pct(b) - pct(a) : () => 0);
+    .filter((p) => folder === "all" || p.folder === folder)
+    .sort((a, b) =>
+      sort === "name"
+        ? a.name.localeCompare(b.name, undefined, { numeric: true })
+        : sort === "progress"
+          ? pct(b) - pct(a)
+          : sort === "folder"
+            ? ((a.folder || "￿").localeCompare(b.folder || "￿", undefined, { sensitivity: "base" }) ||
+              a.name.localeCompare(b.name, undefined, { numeric: true }))
+            : 0,
+    );
+  // Folder sort groups the grid: empty folder last, name inside each folder (already sorted above).
+  const folderGroups = sort === "folder" ? shown.reduce<Record<string, ProjectSummary[]>>((g, p) => {
+    const key = p.folder || "No folder";
+    (g[key] ??= []).push(p);
+    return g;
+  }, {}) : null;
   const total = (k: "chapter_count" | "paragraph_count" | "ready_count" | "duration_ms" | "generating_count" | "error_count") => all.reduce((n, p) => n + p[k], 0);
   const langs = [...new Set(all.map((p) => p.language))];
   const models = [...new Set(all.map((p) => p.model_id))];
@@ -115,11 +149,18 @@ export default function ProjectsPage() {
 
         {projects && all.length === 0 ? (
           <div className="card mt-8 flex flex-col items-center gap-3 p-12 text-center">
-            <p className="font-medium">No projects yet</p>
-            <p className="text-sm text-neutral-500">Create a project, or import .txt, .docx or .zip files as chapters.</p>
+            <p className="font-medium">{archived ? "No archived projects" : "No projects yet"}</p>
+            <p className="text-sm text-neutral-500">{archived ? "Archive a project from its card menu and it will appear here." : "Create a project, or import .txt, .docx or .zip files as chapters."}</p>
             <div className="mt-2 flex gap-2">
-              <button className="btn" onClick={() => setCreating("import")}><Upload size={14} aria-hidden />Import</button>
-              <button className="btn btn-primary" onClick={() => setCreating("new")}><Plus size={14} aria-hidden />New project</button>
+              {archived ? (
+                <button className="btn btn-primary" onClick={() => toggleArchived(false)}>All projects</button>
+              ) : (
+                <>
+                  <button className="btn" onClick={() => setCreating("import")}><Upload size={14} aria-hidden />Import</button>
+                  <button className="btn btn-primary" onClick={() => setCreating("new")}><Plus size={14} aria-hidden />New project</button>
+                  <button className="btn" onClick={() => toggleArchived(true)}>Archived</button>
+                </>
+              )}
             </div>
           </div>
         ) : projects && (
@@ -148,9 +189,33 @@ export default function ProjectsPage() {
                   <option value="updated">Last updated</option>
                   <option value="name">Name</option>
                   <option value="progress">Progress</option>
+                  <option value="folder">Folder</option>
                 </select>
               </label>
+              <button className={`chip ${archived ? "border-accent/60 text-accent" : "text-neutral-500"}`} onClick={() => toggleArchived(!archived)}>
+                {archived ? "All projects" : "Archived"}
+              </button>
             </div>
+
+            {folders.length ? (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <button
+                  className={`chip ${folder === "all" ? "border-accent/60 text-accent" : "text-neutral-400"}`}
+                  onClick={() => setFolder("all")}
+                >
+                  All folders
+                </button>
+                {folders.map((f) => (
+                  <button
+                    key={f}
+                    className={`chip ${folder === f ? "border-accent/60 text-accent" : "text-neutral-400"}`}
+                    onClick={() => setFolder(folder === f ? "all" : f)}
+                  >
+                    {f} <span className="text-neutral-500">{matched.filter((p) => p.folder === f).length}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className="card mt-5 flex flex-wrap">
               <Stat label="Chapters">{total("chapter_count").toLocaleString()}</Stat>
@@ -167,13 +232,24 @@ export default function ProjectsPage() {
             </div>
 
             <div className="mt-7 mb-3 flex items-center justify-between">
-              <h2 className="section-label">{sort === "updated" ? "Recent" : sort === "name" ? "By name" : "By progress"}</h2>
+              <h2 className="section-label">{sort === "updated" ? "Recent" : sort === "name" ? "By name" : sort === "folder" ? "By folder" : "By progress"}</h2>
               <span className="text-xs text-neutral-500">Each bar segment is one chapter</span>
             </div>
             {!shown.length && <div className="card p-10 text-center text-sm text-neutral-500">No projects match.</div>}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {shown.map((p) => <ProjectCard key={p.id} p={p} onRename={() => rename(p)} onDelete={() => remove(p)} />)}
-            </div>
+            {folderGroups ? (
+              <div className="space-y-7">
+                {Object.entries(folderGroups).map(([f, list]) => (
+                  <section key={f} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <h3 className="col-span-full mt-1 text-[12.5px] font-medium tracking-wide text-neutral-400 uppercase">{f}</h3>
+                    {list.map((p) => <ProjectCard key={p.id} p={p} onRename={() => rename(p)} onDelete={() => remove(p)} onFolder={() => moveFolder(p)} onArchive={() => archive(p)} />)}
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {shown.map((p) => <ProjectCard key={p.id} p={p} onRename={() => rename(p)} onDelete={() => remove(p)} onFolder={() => moveFolder(p)} onArchive={() => archive(p)} />)}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -211,7 +287,7 @@ function StatusTag({ p }: { p: ProjectSummary }) {
   );
 }
 
-function ProjectCard({ p, onRename, onDelete }: { p: ProjectSummary; onRename: () => void; onDelete: () => void }) {
+function ProjectCard({ p, onRename, onDelete, onFolder, onArchive }: { p: ProjectSummary; onRename: () => void; onDelete: () => void; onFolder: () => void; onArchive: () => void }) {
   const [menu, setMenu] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const item = "block w-full px-3 py-1.5 text-left text-sm hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none";
@@ -219,6 +295,7 @@ function ProjectCard({ p, onRename, onDelete }: { p: ProjectSummary; onRename: (
     setMenu(false);
     fn();
   };
+  const archLabel = p.archived_at ? "Unarchive" : "Archive";
   return (
     <div className="card group relative flex flex-col px-[18px] pt-[18px] pb-3.5 transition-colors hover:border-neutral-600 hover:bg-neutral-800/40 has-[.card-link:focus-visible]:outline-2 has-[.card-link:focus-visible]:outline-offset-2 has-[.card-link:focus-visible]:outline-ring paper:hover:bg-neutral-900 paper:hover:shadow-md">
       <div className="flex items-center gap-2">
@@ -226,6 +303,7 @@ function ProjectCard({ p, onRename, onDelete }: { p: ProjectSummary; onRename: (
           {/* Stretched link: the whole card opens the project, while the menu stays a separate control. */}
           <Link href={`/projects/${p.id}`} className="card-link outline-none after:absolute after:inset-0 after:content-['']">{p.name}</Link>
         </h3>
+        {p.folder && <span className="chip max-w-32 shrink-0 truncate text-neutral-400">{p.folder}</span>}
         <StatusTag p={p} />
         <div
           className="relative z-10 ml-auto"
@@ -241,8 +319,10 @@ function ProjectCard({ p, onRename, onDelete }: { p: ProjectSummary; onRename: (
             <MoreHorizontal size={16} aria-hidden />
           </button>
           {menu && (
-            <div className="absolute top-full right-0 mt-1 w-32 overflow-hidden rounded-(--radius) border border-neutral-700 bg-neutral-900 py-1 shadow-lg">
+            <div className="absolute top-full right-0 mt-1 w-40 overflow-hidden rounded-(--radius) border border-neutral-700 bg-neutral-900 py-1 shadow-lg">
               <button className={item} autoFocus onClick={pick(onRename)}>Rename</button>
+              <button className={item} onClick={pick(onFolder)}>Move to folder…</button>
+              <button className={item} onClick={pick(onArchive)}>{archLabel}</button>
               <button className={`${item} text-red-400`} onClick={pick(onDelete)}>Delete</button>
             </div>
           )}

@@ -18,6 +18,10 @@ export interface Project {
   paragraph_gap_ms: number;
   /** Inline pronunciation dictionary: replace `text` with Cartesia's `<<pronunciation>>`. */
   pronunciations: { text: string; pronunciation: string }[];
+  /** Free-text folder label; "" = no folder. */
+  folder: string;
+  /** Set when the project is archived; null while it is active. */
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }

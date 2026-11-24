@@ -35,12 +35,12 @@ function clearChapterCache(chapterIds: string[]) {
 
 // ---------------------------------------------------------------- projects
 
-export function listProjects(): ProjectSummary[] {
+export function listProjects(archived = false): ProjectSummary[] {
   const projects = db
     .prepare(
       `SELECT p.*,
         (SELECT x.text FROM paragraphs x JOIN chapters c ON c.id = x.chapter_id WHERE c.project_id = p.id AND x.is_pause = 0 ORDER BY c.position, x.position LIMIT 1) AS preview
-       FROM projects p ORDER BY p.updated_at DESC`,
+       FROM projects p WHERE p.archived_at ${archived ? "IS NOT NULL" : "IS NULL"} ORDER BY p.updated_at DESC`,
     )
     .all() as (Project & { preview: string | null })[];
   // One grouped pass over all chapters; per-project totals are summed in JS.
@@ -104,8 +104,8 @@ export function createProject(p: Partial<Project> & { name: string }): Project {
   const id = newId();
   const t = now();
   db.prepare(
-    `INSERT INTO projects (id, name, description, voice_id, voice_name, model_id, language, speed, sample_rate, bit_depth, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO projects (id, name, description, voice_id, voice_name, model_id, language, speed, sample_rate, bit_depth, folder, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     p.name.trim() || "Untitled project",
@@ -117,6 +117,7 @@ export function createProject(p: Partial<Project> & { name: string }): Project {
     p.speed ?? 1,
     p.sample_rate ?? 48000,
     p.bit_depth ?? "32f",
+    p.folder?.trim() ?? "",
     t,
     t,
   );
@@ -125,7 +126,7 @@ export function createProject(p: Partial<Project> & { name: string }): Project {
 
 const PROJECT_FIELDS = [
   "name", "description", "voice_id", "voice_name", "model_id", "language", "speed",
-  "volume", "emotion", "sample_rate", "bit_depth", "paragraph_gap_ms", "pronunciations",
+  "volume", "emotion", "sample_rate", "bit_depth", "paragraph_gap_ms", "pronunciations", "folder",
 ] as const;
 
 /** Validated pronunciation dictionary: array of {text, pronunciation}, capped at 100 x 200 chars. */
@@ -156,6 +157,7 @@ export function updateProject(id: string, input: Partial<Project>): Project {
   if ("bit_depth" in patch) patch.bit_depth = patch.bit_depth === "16" || patch.bit_depth === "32f" ? patch.bit_depth : cur.bit_depth;
   if ("paragraph_gap_ms" in patch) patch.paragraph_gap_ms = Math.round(clamp(patch.paragraph_gap_ms, 0, 5000, cur.paragraph_gap_ms));
   if ("name" in patch) patch.name = String(patch.name ?? "").trim() || cur.name;
+  if ("folder" in patch) patch.folder = String(patch.folder ?? "").trim();
   if ("pronunciations" in patch) patch.pronunciations = parsePronunciations(patch.pronunciations);
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -190,6 +192,19 @@ export function renameCode(name: string, oldCode: string, newCode: string): stri
 
 export function touchProject(id: string) {
   db.prepare("UPDATE projects SET updated_at = ? WHERE id = ?").run(now(), id);
+}
+
+/** Soft archive: the project and all its audio stay, it just leaves the live list. */
+export function archiveProject(id: string): Project {
+  getProject(id);
+  db.prepare("UPDATE projects SET archived_at = ?, updated_at = ? WHERE id = ?").run(now(), now(), id);
+  return getProject(id);
+}
+
+export function unarchiveProject(id: string): Project {
+  getProject(id);
+  db.prepare("UPDATE projects SET archived_at = NULL, updated_at = ? WHERE id = ?").run(now(), id);
+  return getProject(id);
 }
 
 export function deleteProject(id: string) {
