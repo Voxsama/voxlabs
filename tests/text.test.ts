@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  breakDurations, applyPronunciations, isPauseOnly, looksBroken, naturalCompare, pauseDurationMs, sameLine, splitIntoParagraphs, splitLong, toTranscript,
+  breakDurations, applyPronunciations, isPauseOnly, looksBroken, naturalCompare, pauseDurationMs, sameLine, sentenceSpan, splitIntoParagraphs, splitLong, toTranscript,
 } from "@/lib/text";
 
 describe("sameLine", () => {
@@ -99,4 +99,28 @@ it("detects text that arrived as question marks", () => {
   expect(looksBroken("उन्होंने क्या-क्या तैयारी की? वे इस काम के लिए क्यों?")).toBe(false);
   expect(looksBroken("What? Really?! (yes?) \"ok?\"")).toBe(false);
   expect(looksBroken("नमस्ते")).toBe(false);
+});
+
+describe("sentenceSpan", () => {
+  it("finds the sentence a click landed in", () => {
+    const t = "First one. Second one! Third one?";
+    expect(sentenceSpan(t, 2)).toEqual({ start: 0, end: 10 });
+    expect(sentenceSpan(t, 12)).toEqual({ start: 12, end: 22 });
+    expect(sentenceSpan(t, 25)).toEqual({ start: 25, end: 33 });
+  });
+
+  it("handles the Devanagari danda", () => {
+    const t = "एक वाक्य। दूसरा वाक्य॥ तीसरा";
+    expect(sentenceSpan(t, 0)).toEqual({ start: 0, end: 9 });
+    expect(sentenceSpan(t, 15)).toEqual({ start: 15, end: 22 });
+    expect(sentenceSpan(t, 25)).toEqual({ start: 25, end: 28 });
+  });
+
+  it("keeps a single sentence whole", () => {
+    expect(sentenceSpan("Only one sentence here", 5)).toEqual({ start: 0, end: 22 });
+  });
+
+  it("clamps an offset past the end", () => {
+    expect(sentenceSpan("One. Two.", 999)).toEqual({ start: 9, end: 9 });
+  });
 });

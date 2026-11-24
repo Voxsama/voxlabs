@@ -15,6 +15,12 @@ export interface PlayerHandle {
   playFrom: (paragraphId: string) => void;
   /** Move the playhead to this paragraph, keeping play/pause. No-op if it's already current or has no audio. */
   seekTo: (paragraphId: string) => void;
+  /**
+   * Play from a character offset inside a paragraph. `plainOffset`/`plainTotal` are offsets in the
+   * spoken text (tags stripped), so they line up with the audio even when the paragraph has
+   * <break> tags. When the paragraph has no audio, playback starts at the nearest earlier line.
+   */
+  playAt: (paragraphId: string, plainOffset: number, plainTotal: number) => void;
 }
 
 interface Props {
@@ -83,6 +89,24 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
       const a = audio.current;
       if (!item || !a || currentItem(a.currentTime * 1000)?.paragraphId === paragraphId) return;
       seekMs(item.startMs + 1, !a.paused);
+    },
+    playAt(paragraphId: string, plainOffset: number, plainTotal: number) {
+      const item = timeline.find((i) => i.paragraphId === paragraphId);
+      if (item) {
+        // No word timings from Cartesia, so the offset is proportional to the spoken text.
+        const frac = plainTotal > 0 ? Math.min(1, Math.max(0, plainOffset / plainTotal)) : 0;
+        seekMs(item.startMs + frac * item.durationMs, true);
+        return;
+      }
+      // This line has no audio yet: play from the nearest earlier line that does.
+      const idx = paragraphs.findIndex((p) => p.id === paragraphId);
+      for (let i = idx; i >= 0; i--) {
+        const prev = timeline.find((t) => t.paragraphId === paragraphs[i].id);
+        if (prev) {
+          seekMs(prev.startMs + 1, true);
+          return;
+        }
+      }
     },
   }));
 

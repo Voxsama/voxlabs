@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 import { BROKEN_PASTE_MESSAGE, readPaste } from "@/lib/clipboard";
 import { effectiveSettings, isStale } from "@/lib/settings";
-import { breakDurations, breakTag, formatMs, isPauseOnly, pauseDurationMs, splitIntoParagraphs } from "@/lib/text";
+import { breakDurations, breakTag, formatMs, isPauseOnly, pauseDurationMs, plainText, sentenceSpan, splitIntoParagraphs } from "@/lib/text";
 import type { AudioVersion, Paragraph, Project } from "@/lib/types";
 import { ParagraphSettingsChip } from "./GenerationSettings";
 
@@ -25,6 +25,8 @@ export interface RowActions {
   playFrom: (id: string) => void;
   /** Move the player's playhead here, keeping play/pause. */
   seekTo: (id: string) => void;
+  /** Play from a character offset in the line's spoken text. Offsets exclude <break> tags. */
+  playAt: (id: string, plainOffset: number, plainTotal: number) => void;
   setError: (msg: string) => void;
 }
 
@@ -165,6 +167,20 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
     resize();
     setDirty(true);
     scheduleSave();
+  };
+
+  // Click inside the text to play that sentence. The caret is only placed by the browser after
+  // mousedown, so the offset has to be read in onClick. Alt+click places the caret without
+  // moving the playhead, and a text selection (the user is copying) is left alone.
+  const onClickText = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    if (e.altKey) return;
+    const el = e.currentTarget;
+    const start = el.selectionStart;
+    if (start !== el.selectionEnd) return;
+    const spoken = plainText(el.value);
+    const at = plainText(el.value.slice(0, start)).length;
+    // Play the sentence the click landed in, from its beginning.
+    actions.playAt(p.id, sentenceSpan(spoken, at).start, spoken.length);
   };
 
   const regenerate = async () => {
@@ -341,7 +357,7 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
   return (
     <div
       ref={rowRef}
-      onPointerDown={(e) => !(e.target as HTMLElement).closest("button,a,select,input") && actions.seekTo(p.id)}
+      onPointerDown={(e) => !(e.target as HTMLElement).closest("button,a,select,input,textarea") && actions.seekTo(p.id)}
       className={`group @container relative grid grid-cols-[28px_3px_minmax(0,1fr)] gap-x-3.5 border-b border-neutral-800 pr-3 paper:rounded-xl paper:border paper:border-transparent ${pause ? "py-2.5" : "py-3"} ${
         current ? "bg-purple-950/40 paper:border-purple-900" : "hover:bg-neutral-900 focus-within:bg-neutral-900 paper:hover:border-neutral-700 paper:hover:shadow-sm paper:focus-within:border-neutral-700"
       } ${kind === "error" ? "paper:bg-red-950 paper:border-red-900" : ""}`}
@@ -393,6 +409,8 @@ function ParagraphRowInner({ p, index, chapter, project, current, playback, focu
               }}
               onKeyDown={onKeyDown}
               onPaste={onPaste}
+              onClick={onClickText}
+              title="Click a sentence to play it (Alt+click to only place the caret)"
               placeholder="Type or paste text..."
               className="block w-full resize-none overflow-hidden script bg-transparent text-neutral-100 outline-none"
             />

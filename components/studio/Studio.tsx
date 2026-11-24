@@ -170,6 +170,7 @@ export function Studio({ projectId }: { projectId: string }) {
       },
       playFrom: (id) => player.current?.playFrom(id),
       seekTo: (id) => player.current?.seekTo(id),
+      playAt: (id, plainOffset, plainTotal) => player.current?.playAt(id, plainOffset, plainTotal),
       setError,
     }),
     [],

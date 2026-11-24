@@ -65,6 +65,18 @@ export function plainText(text: string): string {
   return text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * The sentence holding `offset`, as offsets into `text`.
+ * Sentence ends: Latin . ! ? and Devanagari danda / double danda.
+ */
+export function sentenceSpan(text: string, offset: number): { start: number; end: number } {
+  const at = Math.max(0, Math.min(offset, text.length));
+  const m = /[.!?।॥][^.!?।॥]*$/.exec(text.slice(0, at));
+  const start = m ? m.index + m[0].length : 0;
+  const n = /[.!?।॥]/.exec(text.slice(start));
+  return { start, end: n ? start + n.index + 1 : text.length };
+}
+
 /** Split a block that is too long into sentence-sized chunks under `max` characters. */
 export function splitLong(block: string, max = MAX_PARAGRAPH_CHARS): string[] {
   if (block.length <= max) return [block];
