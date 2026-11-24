@@ -61,6 +61,8 @@ export interface TtsOptions {
   container?: "wav" | "mp3";
   sampleRate?: number; // default 44100
   encoding?: PcmEncoding; // default pcm_s16le
+  /** Which project generated this, so per-project credits are recorded. */
+  projectId?: string;
 }
 
 /** generation_config as the playground sends it: speed/volume only when not 1, emotion for any language. */
@@ -96,7 +98,7 @@ export async function tts(opts: TtsOptions): Promise<Buffer> {
     }),
   );
   const audio = Buffer.from(await res.arrayBuffer());
-  recordUsage(opts.transcript.length);
+  recordUsage(opts.transcript.length, opts.projectId);
   return audio;
 }
 

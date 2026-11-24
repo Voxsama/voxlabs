@@ -83,6 +83,12 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   day TEXT PRIMARY KEY,
   characters INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS usage_project (
+  project_id TEXT NOT NULL,
+  day TEXT NOT NULL,
+  characters INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (project_id, day)
+);
 CREATE TABLE IF NOT EXISTS templates (
   id TEXT PRIMARY KEY,
   category TEXT NOT NULL DEFAULT '',

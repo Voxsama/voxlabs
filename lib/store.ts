@@ -3,6 +3,7 @@ import path from "node:path";
 import { AUDIO_DIR, CACHE_DIR, db, newId, now } from "./db";
 import { emit } from "./events";
 import { isPauseOnly, sameLine } from "./text";
+import { projectUsageAllTime } from "./usage";
 import type {
   AudioVersion, Chapter, Paragraph, ParagraphStatus, Project, ProjectSummary, Template, TemplateChapter, TemplateInput,
 } from "./types";
@@ -57,9 +58,26 @@ export function listProjects(): ProjectSummary[] {
        GROUP BY c.id ORDER BY c.position`,
     )
     .all() as { project_id: string; name: string; paragraph_count: number; ready_count: number; duration_ms: number; generating_count: number; error_count: number }[];
+  // Tracked per-project TTS characters; the rendered-text length of active versions back-fills
+  // projects that were generated before the tracker existed (and is flagged as an approximation).
+  const trackedUsage = projectUsageAllTime();
+  const approxUsage = new Map<string, number>(
+    (db
+      .prepare(
+        `SELECT ch.project_id AS project_id, SUM(LENGTH(a.text_snapshot)) AS n
+           FROM audio_versions a
+           JOIN paragraphs pa ON pa.id = a.paragraph_id
+           JOIN chapters ch ON ch.id = pa.chapter_id
+           WHERE a.id = pa.active_version_id
+           GROUP BY ch.project_id`,
+      )
+      .all() as { project_id: string; n: number }[]).map((r) => [r.project_id, r.n]),
+  );
   return projects.map((p) => {
     const own = chapters.filter((c) => c.project_id === p.id);
     const sum = (k: "paragraph_count" | "ready_count" | "duration_ms" | "generating_count" | "error_count") => own.reduce((n, c) => n + c[k], 0);
+    const tracked = trackedUsage.get(p.id);
+    const approx = approxUsage.get(p.id) ?? 0;
     return {
       ...p,
       pronunciations: readPronunciations(p.pronunciations),
@@ -70,6 +88,8 @@ export function listProjects(): ProjectSummary[] {
       generating_count: sum("generating_count"),
       error_count: sum("error_count"),
       chapters: own.map(({ name, paragraph_count, ready_count }) => ({ name, paragraph_count, ready_count })),
+      credits: tracked ?? approx,
+      credits_approx: tracked == null && approx > 0,
     };
   });
 }

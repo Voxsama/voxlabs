@@ -37,6 +37,10 @@ export interface ProjectSummary extends Project {
   /** In chapter order, for the segmented progress bar. */
   chapters: { name: string; paragraph_count: number; ready_count: number }[];
   preview: string | null;
+  /** Characters sent to TTS, tracked per project since usage_project logging began. */
+  credits: number;
+  /** Approximation for projects that predate the tracker: rendered text length of active versions. */
+  credits_approx: boolean;
 }
 
 export interface Chapter {

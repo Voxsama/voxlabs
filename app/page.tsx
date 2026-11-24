@@ -266,8 +266,20 @@ function ProjectCard({ p, onRename, onDelete }: { p: ProjectSummary; onRename: (
         ))}
       </div>
       <div className="mt-[18px] flex items-center justify-between border-t border-neutral-800 pt-3 text-xs text-neutral-500 paper:border-neutral-700">
-        <span title={new Date(p.updated_at).toLocaleString()}>Updated {ago(p.updated_at)}</span>
-        <span className="inline-flex items-center gap-1 text-neutral-300">Open<ArrowRight size={14} aria-hidden /></span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span title={new Date(p.updated_at).toLocaleString()}>Updated {ago(p.updated_at)}</span>
+          {p.credits > 0 && (
+            <span
+              className="truncate text-neutral-400"
+              title={p.credits_approx
+                ? `About ${p.credits.toLocaleString()} characters of audio in this project, estimated from its existing audio files (credit tracking began later)`
+                : `${p.credits.toLocaleString()} characters sent to TTS for this project (about 1 credit each)`}
+            >
+              {p.credits_approx ? "≈" : ""}{p.credits.toLocaleString()} credits
+            </span>
+          )}
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1 text-neutral-300">Open<ArrowRight size={14} aria-hidden /></span>
       </div>
     </div>
   );

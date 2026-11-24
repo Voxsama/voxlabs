@@ -18,6 +18,8 @@ export interface RunOptions {
   /** Called as soon as transcript `i` is complete (its flush is done). */
   onAudio?: (i: number, pcm: Buffer) => void;
   idleTimeoutMs?: number;
+  /** Which project generated this, so per-project credits are recorded. */
+  projectId?: string;
 }
 
 /**
@@ -67,7 +69,7 @@ export function generateRun(transcripts: string[], s: GenSettings, opts: RunOpti
       if (i < 0 || i >= out.length || out[i]) return;
       out[i] = Buffer.concat(parts[i]);
       parts[i] = [];
-      recordUsage(transcripts[i].length);
+      recordUsage(transcripts[i].length, opts.projectId);
       opts.onAudio?.(i, out[i]!);
     };
     const onAbort = () => finish(new Error("Cancelled"));

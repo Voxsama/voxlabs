@@ -182,8 +182,10 @@ async function runJob(job: Job) {
   if (!ps.length) return;
   const texts = ps.map((p) => p.text); // snapshot: edits during generation make it stale, not wrong
   let s: GenSettings;
+  let projectId: string;
   try {
     const c = getChapter(ps[0].chapter_id);
+    projectId = c.project_id;
     s = effectiveSettings(ps[0], c, getProject(c.project_id)); // a run shares one set of settings
     if (!s.voiceId) throw new Error("No voice selected. Pick a voice for the project, chapter or paragraph.");
   } catch (e) {
@@ -205,6 +207,7 @@ async function runJob(job: Job) {
       setStatus(ps[0].id, "generating");
       await generateRun(texts.map((_, i) => transcript(i)), s, {
         signal: job.abort.signal,
+        projectId,
         onAudio: (i, pcm) => {
           try {
             saveVersion(ps[i], texts[i], s, buildWav(fmt, pcm), true);
@@ -244,6 +247,7 @@ async function runJob(job: Job) {
         emotion: s.emotion,
         sampleRate: s.sampleRate,
         encoding: encodingFor(s.bitDepth),
+        projectId,
       });
       saveVersion(p, texts[i], s, audio, false);
     } catch (e) {
