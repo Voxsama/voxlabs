@@ -103,7 +103,7 @@ export default function LandingPage() {
           {FEATURES.map(({ Icon, title, body, wide }) => (
             <div key={title} className={`card p-4 ${wide ? "sm:col-span-2" : ""}`}>
               <div className="flex items-center gap-2">
-                <Icon size={16} className="shrink-0 text-purple-300" aria-hidden />
+                <Icon size={16} className="shrink-0 text-neutral-400" aria-hidden />
                 <h2 className="text-sm font-semibold">{title}</h2>
               </div>
               <p className="mt-1.5 text-[12.5px] leading-5 text-neutral-400">{body}</p>

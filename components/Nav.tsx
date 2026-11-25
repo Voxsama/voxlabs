@@ -44,7 +44,11 @@ export function Nav() {
   const user = me?.user && !me.authDisabled ? me.user : null;
   return (
     <nav className="flex w-52 shrink-0 flex-col border-r border-neutral-800 px-3 pt-[18px] pb-3.5 paper:border-neutral-700 paper:bg-neutral-900">
-      <div className="px-2 pb-4"><Logo className="h-7 w-auto" /></div>
+      <div className="px-2 pb-4">
+        <Link href="/" aria-label="Voxlabs — landing page" className="inline-flex rounded-(--radius) outline-ring focus-visible:outline">
+          <Logo className="h-7 w-auto" />
+        </Link>
+      </div>
       {me?.user && <CreditsBadge />}
       <div className="flex flex-col gap-px">
         {link("/projects", "Projects", FolderOpen)}
