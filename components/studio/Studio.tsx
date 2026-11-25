@@ -316,7 +316,7 @@ export function Studio({ projectId }: { projectId: string }) {
       {/* Chapters column */}
       <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800 bg-neutral-900 paper:border-neutral-700 paper:bg-neutral-950">
         <div className="border-b border-neutral-800 px-4 pt-[18px] pb-3.5 paper:border-transparent">
-          <Link href="/" className="section-label mb-1.5 inline-flex items-center gap-1 hover:text-neutral-300">
+          <Link href="/projects" className="section-label mb-1.5 inline-flex items-center gap-1 hover:text-neutral-300">
             Projects <ChevronRight size={14} aria-hidden />
           </Link>
           <h2 className="text-xl leading-tight font-bold break-words">{project.name}</h2>

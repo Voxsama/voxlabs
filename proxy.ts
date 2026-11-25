@@ -3,7 +3,7 @@ import { authDisabled, SESSION_COOKIE, verifyToken } from "@/lib/session";
 
 // First gate: every page and API needs a valid signed session cookie.
 // API routes check again (including that the user still exists) in lib/http.ts.
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/auth/setup", "/api/version"];
+const PUBLIC = ["/", "/login", "/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/auth/setup", "/api/version"];
 
 export function proxy(req: NextRequest) {
   if (authDisabled()) return NextResponse.next();

@@ -47,7 +47,7 @@ export function Nav() {
       <div className="px-2 pb-4"><Logo className="h-7 w-auto" /></div>
       {me?.user && <CreditsBadge />}
       <div className="flex flex-col gap-px">
-        {link("/", "Projects", FolderOpen)}
+        {link("/projects", "Projects", FolderOpen)}
         {link("/voices", "Voices", Mic)}
         {link("/voices/clone", "Clone a voice", Copy)}
         {me?.user?.is_admin ? link("/settings", "Settings", Settings) : null}

@@ -25,7 +25,7 @@ export default function LoginPage() {
   const go = () => {
     const next = new URLSearchParams(window.location.search).get("next");
     // Only allow local paths as the redirect target.
-    window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/projects";
   };
 
   const submit = async (e: React.FormEvent) => {
