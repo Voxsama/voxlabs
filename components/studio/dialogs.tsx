@@ -6,7 +6,8 @@ import { ErrorText, Field, Modal } from "@/components/ui";
 import { ProjectGenerationFields } from "./GenerationSettings";
 import { api, downloadPost } from "@/lib/api";
 import { BROKEN_PASTE_MESSAGE, readPaste } from "@/lib/clipboard";
-import { LANGUAGES } from "@/lib/constants";
+import { LANGUAGES, EMOTIONS, SPEED_RANGE, VOLUME_RANGE } from "@/lib/constants";
+import { VoiceBrowser, type Picked } from "@/components/VoicePicker";
 import { splitIntoParagraphs } from "@/lib/text";
 import type { Chapter, Paragraph, Project } from "@/lib/types";
 
@@ -299,6 +300,108 @@ export function ProjectSettingsDialog({ project, onClose, onSaved }: { project: 
             <button className="btn" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" onClick={save}>Save</button>
           </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Voice patch the bulk API accepts. A key left out means "leave unchanged"; an explicit null
+ * resets to the inherited value. Build the object conditionally — JSON.stringify drops undefined,
+ * so "unchanged" must be a missing key, not undefined/null.
+ */
+export interface BulkVoicePatch {
+  voice_id?: string | null;
+  voice_name?: string | null;
+  speed?: number | null;
+  volume?: number | null;
+  emotion?: string | null;
+}
+
+/** Bulk "Set voice…" for the selected paragraphs. */
+export function VoiceDialog({ count, ids, language, onApply, onClose }: {
+  count: number;
+  ids: string[];
+  language?: string;
+  onApply: (ids: string[], patch: BulkVoicePatch) => void;
+  onClose: () => void;
+}) {
+  const [voice, setVoice] = useState<Picked | null>(null);
+  const [resetVoice, setResetVoice] = useState(false); // explicit "use the chapter/project voice"
+  const [speed, setSpeed] = useState<number | null>(null);
+  const [volume, setVolume] = useState<number | null>(null);
+  const [emotion, setEmotion] = useState<string | null>(null);
+
+  // Nothing chosen yet: the Apply button is inert.
+  const hasChanges = !!(voice || resetVoice || speed != null || volume != null || emotion != null);
+  const apply = () => {
+    if (!hasChanges) return;
+    // "Unchanged" = key omitted; "reset to inherited" = explicit null. Build the object
+    // conditionally so JSON.stringify drops the unset keys instead of sending them as null.
+    const patch: BulkVoicePatch = {};
+    if (voice) {
+      patch.voice_id = voice.id;
+      patch.voice_name = voice.name; // the row chip shows the name, not just the id
+    } else if (resetVoice) {
+      patch.voice_id = null;
+    }
+    if (speed != null) patch.speed = speed;
+    if (volume != null) patch.volume = volume;
+    if (emotion != null) patch.emotion = emotion;
+    onApply(ids, patch);
+  };
+
+  return (
+    <Modal title={`Set voice for ${count} paragraph${count === 1 ? "" : "s"}`} onClose={onClose} wide>
+      <div className="space-y-4">
+        <div className="flex h-[60vh] flex-col gap-3">
+          <VoiceBrowser
+            defaultLanguage={language}
+            pickLabel="Use"
+            onPick={(v) => {
+              setVoice(v);
+              setResetVoice(false);
+            }}
+          />
+          {voice ? (
+            <div className="flex items-center gap-2">
+              <span className="chip">{voice.name}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setVoice(null); setResetVoice(false); }}>Clear</button>
+            </div>
+          ) : (
+            <button
+              className={`btn btn-sm ${resetVoice ? "btn-primary" : ""}`}
+              aria-pressed={resetVoice}
+              onClick={() => setResetVoice(!resetVoice)}
+            >
+              Use chapter/project voice
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field label="Speed (optional)">
+            <input className="input" type="number" inputMode="decimal" min={SPEED_RANGE.min} max={SPEED_RANGE.max} step={0.05} value={speed ?? ""}
+              onChange={(e) => setSpeed(e.target.value === "" ? null : Number(e.target.value))} />
+          </Field>
+          <Field label="Volume (optional)">
+            <input className="input" type="number" inputMode="decimal" min={VOLUME_RANGE.min} max={VOLUME_RANGE.max} step={0.05} value={volume ?? ""}
+              onChange={(e) => setVolume(e.target.value === "" ? null : Number(e.target.value))} />
+          </Field>
+          <Field label="Emotion (optional)">
+            <select className="input" value={emotion ?? ""} onChange={(e) => setEmotion(e.target.value || null)}>
+              <option value="">Unchanged</option>
+              {EMOTIONS.map((e) => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </Field>
+        </div>
+        <p className="text-xs text-neutral-500">
+          Empty fields leave the current speed, volume or emotion untouched. "Use chapter/project voice" resets the
+          lines' own voices to the inherited one. Cartesia documents emotion for English; for other languages it works as a hint.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={!hasChanges} onClick={apply}>Set voice</button>
         </div>
       </div>
     </Modal>

@@ -4,6 +4,11 @@ import { deleteParagraphs, setParagraphVoice } from "@/lib/store";
 export interface BulkPatch {
   action: "delete" | "voice";
   ids: string[];
+  /**
+   * The voice patch, passed through to the store untouched: a missing key leaves the
+   * paragraph's value alone, an explicit null resets it to inherit. (JSON.stringify drops
+   * undefined, so the client must send null to reset and omit the key to leave alone.)
+   */
   voice?: {
     voice_id?: string | null;
     voice_name?: string | null;

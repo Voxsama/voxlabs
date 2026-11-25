@@ -9,7 +9,7 @@ import { LANGUAGES, MODELS, SAMPLE_RATES } from "@/lib/constants";
 import { effectiveSettings, isStale, needsGeneration } from "@/lib/settings";
 import { isPauseOnly, plainText } from "@/lib/text";
 import type { Chapter, Paragraph, Project, StudioEvent } from "@/lib/types";
-import { ExportDialog, ImportFilesDialog, PasteDialog, ProjectSettingsDialog } from "./dialogs";
+import { ExportDialog, ImportFilesDialog, PasteDialog, ProjectSettingsDialog, VoiceDialog, type BulkVoicePatch } from "./dialogs";
 import { ParagraphRow, type FocusRequest, type RowActions } from "./ParagraphRow";
 import { Player, type PlayerHandle, type TimelineItem } from "./Player";
 
@@ -95,9 +95,19 @@ export function Studio({ projectId }: { projectId: string }) {
         if (p.chapter_id === chapterIdRef.current) {
           setParagraphs((ps) => ps.map((x) => (x.id === p.id ? p : x)));
         }
-        if (refreshChaptersSoon.current) clearTimeout(refreshChaptersSoon.current);
-        refreshChaptersSoon.current = setTimeout(() => loadProject().catch(() => {}), 800);
+      } else if (ev.type === "chapter") {
+        // Bulk edits (e.g. deleting selected lines) don't emit per-paragraph events: refetch the
+        // chapter they touched so the rows stay correct.
+        if (ev.chapterId === chapterIdRef.current) {
+          api<{ paragraphs: Paragraph[] }>(`/api/chapters/${ev.chapterId}`).then((r) => {
+            if (ev.chapterId === chapterIdRef.current) setParagraphs(r.paragraphs);
+          }).catch(() => {});
+        }
+      } else {
+        return; // pings only keep the stream alive
       }
+      if (refreshChaptersSoon.current) clearTimeout(refreshChaptersSoon.current);
+      refreshChaptersSoon.current = setTimeout(() => loadProject().catch(() => {}), 800);
     };
     return () => es.close();
   }, [projectId, loadProject]);
@@ -224,23 +234,14 @@ export function Studio({ projectId }: { projectId: string }) {
   };
 
   const [voiceDialog, setVoiceDialog] = useState(false);
-  const [patchVoice, setPatchVoice] = useState({ voice_id: "", speed: null as number | null, volume: null as number | null, emotion: "" });
-  const applyVoice = async () => {
-    if (!selected.size) return;
+  // The dialog owns the form and builds the patch; it only includes the fields the user set,
+  // so unset settings are left untouched (a missing key) rather than cleared (null).
+  const applyVoice = async (ids: string[], patch: BulkVoicePatch) => {
+    if (!ids.length) return;
     try {
       await api("/api/paragraphs/bulk", {
         method: "POST",
-        json: {
-          action: "voice",
-          ids: [...selected],
-          voice: {
-            voice_id: patchVoice.voice_id || undefined,
-            voice_name: undefined,
-            speed: patchVoice.speed,
-            volume: patchVoice.volume,
-            emotion: patchVoice.emotion || undefined,
-          },
-        },
+        json: { action: "voice", ids, voice: patch },
       });
       setVoiceDialog(false);
       setSelected(new Set());
@@ -550,6 +551,15 @@ export function Studio({ projectId }: { projectId: string }) {
       )}
       {dialog === "export" && <ExportDialog project={project} chapters={chapters} currentChapterId={chapterId} onClose={() => setDialog(null)} />}
       {dialog === "settings" && <ProjectSettingsDialog project={project} onClose={() => setDialog(null)} onSaved={setProject} />}
+      {voiceDialog && (
+        <VoiceDialog
+          count={selected.size}
+          ids={[...selected]}
+          language={project?.language}
+          onApply={applyVoice}
+          onClose={() => setVoiceDialog(false)}
+        />
+      )}
     </div>
   );
 }

@@ -583,24 +583,42 @@ export function deleteParagraphs(ids: string[]): { deleted: number; chapters: st
   })();
   for (const f of files) fs.rmSync(f, { force: true });
   clearChapterCache([...chapters]);
+  // Tell the open studios: the studio listens for chapter events to refresh the rows it lost.
+  const projects = new Set<string>();
+  for (const cid of chapters) {
+    const c = db.prepare("SELECT project_id FROM chapters WHERE id = ?").get(cid) as { project_id: string } | undefined;
+    if (!c) continue;
+    projects.add(c.project_id);
+    emit(c.project_id, { type: "chapter", chapterId: cid });
+  }
+  // The projects list is sorted by "last updated", so a deletion has to bump it.
+  for (const pid of projects) touchProject(pid);
   return { deleted, chapters: [...chapters] };
 }
 
-/** Assign voice/speed/volume/emotion to many paragraphs at once, keeping each row's text. */
+/**
+ * Assign voice/speed/volume/emotion to many paragraphs at once, keeping each row's text.
+ * A key left out of the patch keeps the paragraph's current value; a key set to null resets
+ * it to inherit. Same rule as updateParagraph.
+ */
 export function setParagraphVoice(ids: string[], patch: Pick<ParagraphPatch, "voice_id" | "voice_name" | "speed" | "volume" | "emotion">): number {
   const stmt = db.prepare(
     "UPDATE paragraphs SET voice_id = ?, voice_name = ?, speed = ?, volume = ?, emotion = ?, updated_at = ? WHERE id = ?",
   );
+  const sel = db.prepare("SELECT voice_id, voice_name, speed, volume, emotion FROM paragraphs WHERE id = ?");
   let n = 0;
   db.transaction(() => {
     for (const id of ids) {
-      const p = db.prepare("SELECT id FROM paragraphs WHERE id = ?").get(id);
-      if (!p) continue;
-      const speed = "speed" in patch ? clamp(patch.speed, 0.6, 1.5, null) : null;
-      const volume = "volume" in patch ? clamp(patch.volume, 0.5, 2, null) : null;
-      const emotion = "emotion" in patch ? patch.emotion || null : null;
-      const [vid, vname] = "voice_id" in patch ? [patch.voice_id ?? null, patch.voice_name ?? null] : [null, null];
-      stmt.run(vid, vname, speed, volume, emotion, now(), id);
+      const cur = sel.get(id) as Pick<Paragraph, "voice_id" | "voice_name" | "speed" | "volume" | "emotion"> | undefined;
+      if (!cur) continue;
+      const voice_id = "voice_id" in patch ? patch.voice_id ?? null : cur.voice_id;
+      // A voice and its name go together: no voice means no name.
+      let voice_name = "voice_name" in patch ? patch.voice_name ?? null : cur.voice_name;
+      if (voice_id === null) voice_name = null;
+      const speed = "speed" in patch ? clamp(patch.speed, 0.6, 1.5, null) : cur.speed;
+      const volume = "volume" in patch ? clamp(patch.volume, 0.5, 2, null) : cur.volume;
+      const emotion = "emotion" in patch ? patch.emotion || null : cur.emotion;
+      stmt.run(voice_id, voice_name, speed, volume, emotion, now(), id);
       n++;
     }
   })();
