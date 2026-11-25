@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AudioLines, CheckSquare, Download, Globe, HardDrive, History, Layers, Mic, Timer, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/Logo";
@@ -56,23 +55,18 @@ const FEATURES: { Icon: LucideIcon; title: string; body: string; wide?: boolean 
 ];
 
 export default function LandingPage() {
-  const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((j) => {
         setChecked(true);
         setSignedIn(Boolean(j.user));
-        // Signed-in users land in the studio, not on the marketing page: give it a paint first.
-        if (j.user) t = setTimeout(() => router.replace("/projects"), 600);
       })
       .catch(() => setChecked(true));
-    return () => clearTimeout(t);
-  }, [router]);
+  }, []);
 
   return (
     <div className="h-full overflow-auto px-8 py-7">
