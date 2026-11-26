@@ -5,6 +5,23 @@
   --color-on-accent: #ffffff;
   --color-ring: #ffffff;
   --color-accent: #a78bfa;
+  --font-display: var(--font-display);
+}
+
+/* Landing hero: the signature element stays dark violet in both themes, so its colours are
+   fixed here rather than remapped per theme. */
+:root {
+  --landing-hero-bg: #150a24;
+  --landing-hero-glow: #7c3aed;
+  --landing-hero-ink: #f5f3ff;
+  --landing-hero-muted: #c4b5fd;
+  --landing-cta: #ddd6fe;
+  --landing-cta-ink: #2e1065;
+  --landing-wave: #c4b5fd;
+  --landing-wave-hot: #f5f3ff;
+  --landing-strip: #e7e1fb;
+  --landing-strip-ink: #3a2a63;
+  --landing-strip-div: #c3b8e6;
 }
 
 /* paper:… applies a utility only in the Paper theme. */
@@ -34,6 +51,15 @@
   --font-heading: var(--font-archivo);
   --font-body: var(--font-space-grotesk);
   --font-devanagari: var(--font-noto-devanagari);
+  /* Landing card illustrations (dark surfaces, light ink). */
+  --landing-art-row: #17171a;
+  --landing-art-line: #2e2e34;
+  --landing-art-sel: #2b1a4d;
+  --landing-art-sel-line: #7c3aed;
+  --landing-art-ink: #e8e6f0;
+  --landing-art-muted: #9c99ab;
+  --landing-art-accent: #a78bfa;
+  --landing-art-chip: #1d1d22;
 }
 
 html[data-theme="paper"] {
@@ -75,6 +101,15 @@ html[data-theme="paper"] {
   --color-ring: #1e3a5f;
   --color-accent: #1e3a5f;
   --logo-accent: #7c3aed;
+  /* Landing card illustrations (light surfaces, dark ink). */
+  --landing-art-row: #f4f2f8;
+  --landing-art-line: #ddd8e8;
+  --landing-art-sel: #ddd0f7;
+  --landing-art-sel-line: #a78bfa;
+  --landing-art-ink: #2e1065;
+  --landing-art-muted: #6b5a8d;
+  --landing-art-accent: #7c3aed;
+  --landing-art-chip: #f1eefb;
   --radius: 8px;
   --radius-lg: 12px;
   --text-body: 14px;

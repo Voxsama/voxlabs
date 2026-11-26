@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, Noto_Sans_Devanagari, Outfit, Space_Grotesk, Work_Sans } from "next/font/google";
+import { Archivo, Noto_Sans_Devanagari, Outfit, Playfair_Display, Space_Grotesk, Work_Sans } from "next/font/google";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
@@ -8,7 +8,9 @@ const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 const workSans = Work_Sans({ subsets: ["latin"], variable: "--font-work-sans", display: "swap" });
 const notoDevanagari = Noto_Sans_Devanagari({ subsets: ["latin", "devanagari"], variable: "--font-noto-devanagari", display: "swap" });
-const fonts = [archivo, spaceGrotesk, outfit, workSans, notoDevanagari].map((f) => f.variable).join(" ");
+// Serif display face: the landing hero headline only.
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+const fonts = [archivo, spaceGrotesk, outfit, workSans, notoDevanagari, playfair].map((f) => f.variable).join(" ");
 
 // Runs before paint. A #theme=paper|studio hash overrides the stored choice (for QA screenshots).
 const themeScript = `try{var t=(location.hash.match(/theme=(studio|paper)/)||[])[1]||localStorage.getItem("voxlabs-theme");if(t!=="studio"&&t!=="paper")t=matchMedia("(prefers-color-scheme: light)").matches?"paper":"studio";document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="studio"}`;

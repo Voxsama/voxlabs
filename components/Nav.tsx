@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Copy, FolderOpen, Mic, Settings, User, type LucideIcon } from "lucide-react";
+import { Copy, FolderOpen, Home, Mic, Settings, User, type LucideIcon } from "lucide-react";
 import { CreditsBadge } from "./CreditsBadge";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -34,7 +34,7 @@ export function Nav() {
       <Link
         href={href}
         aria-current={on ? "page" : undefined}
-        className={`group flex items-center gap-2.5 rounded-(--radius) px-2 py-[7px] ${on ? "bg-neutral-800 font-medium text-neutral-100 shadow-[inset_2px_0_0_var(--color-accent)] paper:font-semibold paper:text-purple-300" : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"}`}
+        className={`group flex items-center gap-2.5 rounded-(--radius) px-2 py-[7px] ${on ? "bg-purple-950/40 font-medium text-neutral-100 shadow-[inset_2px_0_0_var(--color-accent)] paper:font-semibold paper:text-purple-300" : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"}`}
       >
         <Icon size={16} strokeWidth={1.75} aria-hidden className={on ? "text-accent" : "text-neutral-500 group-hover:text-neutral-400"} />
         {label}
@@ -51,6 +51,7 @@ export function Nav() {
       </div>
       {me?.user && <CreditsBadge />}
       <div className="flex flex-col gap-px">
+        {link("/", "Overview", Home)}
         {link("/projects", "Projects", FolderOpen)}
         {link("/voices", "Voices", Mic)}
         {link("/voices/clone", "Clone a voice", Copy)}
